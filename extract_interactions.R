@@ -23,8 +23,10 @@ get_interaction_graph_data <- function(d) {
     mutate(interacts = map2(quoted_user_id, retweeted_user_id, concat_na_omit)) %>%
     mutate(interacts = map2(interacts, replied_user_id, concat_na_omit)) %>%
     mutate(interacts = map2(interacts, mentions, concat_na_omit)) %>%
-    select(user_id, interacts) %>%
-    unchop(interacts)# %>%
+    select(user_id, created_at, interacts) %>%
+    unchop(interacts) %>%
+    mutate(interacts = interacts %>% str_replace_all('@', ''))
+    # %>%
     #as_tbl_graph()
 
   return(interactions)
@@ -32,4 +34,8 @@ get_interaction_graph_data <- function(d) {
 
 twlz_transactions <- d %>%
   filter(is_twlz) %>%
+  get_interaction_graph_data()
+
+edchatde_transactions <- d %>%
+  filter(is_edchatde) %>%
   get_interaction_graph_data()
