@@ -1,5 +1,7 @@
 library(tidyverse)
-fn <- 'C://TwitterGermanyProjectData/FINAL/final_propagated_botchecked_08.10.2022.rds'
+source('utils.R')
+
+fn <- 'C://TwitterGermanyProjectData/FINAL/final_prop_bot_user_21.10.rds'
 d <- readRDS(fn)
 
 # Get relevant hashtags
@@ -51,6 +53,35 @@ out['is_edchatde'] <- out$hashtags %>% map_lgl(~match2vecs(., v2=chats))
 out <- out %>%
   mutate(community = ifelse(is_twlz & is_edchatde, 'both', ifelse(is_twlz, 'twlz', ifelse(is_edchatde, 'edchatde', 'neither'))))
 
+# Add transaction variables
+
+d <- out
+
+# Step 1: Binary variable "is twlz transaction" and "is edchat transaction"
+
+twlz_transactions <- d %>%
+  filter(is_twlz) %>%
+  get_n_interactions(rename_variable = 'n_interactions_twlz')
+
+edchatde_transactions <- d %>%
+  filter(is_edchatde) %>%
+  get_n_interactions(rename_variable = 'n_interactions_edchat')
+
+d2 <- d %>%
+  left_join(twlz_transactions, by='status_id') %>%
+  left_join(edchatde_transactions, by='status_id')
+
+d2$n_interactions_twlz[is.na(d2$n_interactions_twlz)] <- 0
+d2$n_interactions_edchat[is.na(d2$n_interactions_edchat)] <- 0
+
+# Step 2: Sort by user id, created at and then group by user 1:n
+
+d2 <- d2 %>%
+  arrange(user_id, created_at)
+
+d2['n_interactions_twlz_cumsum'] <- ave(d2$n_interactions_twlz, d2$user_id, FUN=cumsum)
+d2['n_interactions_edchatde_cumsum'] <- ave(d2$n_interactions_edchat, d2$user_id, FUN=cumsum)
+
 # Export
 fn <- 'data/main-full.rds'
-saveRDS(out, fn)
+saveRDS(d2, fn)
