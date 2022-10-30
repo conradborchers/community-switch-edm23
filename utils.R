@@ -46,3 +46,51 @@ get_n_interactions <- function(d, rename_variable='') {
 
   return(interactions)
 }
+
+add_member_group <- function(d, reference='twlz', n_interactions_for_membership = 3) {
+  if (reference == 'twlz') {
+    d['is_twlz_member'] <- d$n_interactions_twlz_cumsum > n_interactions_for_membership
+    twlz_entries <- d %>%
+      filter(is_twlz_member) %>%
+      group_by(user_id) %>%
+      summarize(twlz_entry = min(created_at)) %>%
+      ungroup() %>%
+      arrange(twlz_entry) %>%
+      mutate(n_members = 1:n()) %>%
+      mutate(n_members_perc = n_members / n()) %>%
+      mutate(twlz_member_group = case_when(
+        n_members_perc <= 0.025 ~ 'innovators',
+        n_members_perc <= 0.025+0.135 ~ 'early adopters',
+        n_members_perc <= 0.025+0.135+0.34 ~ 'early majority',
+        n_members_perc <= 0.025+0.135+0.34+0.34 ~ 'late majority',
+        TRUE ~ 'laggards'
+      ))
+    out <- d %>%
+      left_join(twlz_entries %>% select(user_id, twlz_entry, twlz_member_group), by='user_id')
+    #out$twlz_member_group[out$created_at < out$twlz_entry] <- NA # mask group before it occurs
+    return(out)
+  } else if (reference == 'edchatde') {
+    d['is_edchatde_member'] <- d$n_interactions_edchatde_cumsum > n_interactions_for_membership
+    edchatde_entries <- d %>%
+      filter(is_edchatde_member) %>%
+      group_by(user_id) %>%
+      summarize(edchatde_entry = min(created_at)) %>%
+      ungroup() %>%
+      arrange(edchatde_entry) %>%
+      mutate(n_members = 1:n()) %>%
+      mutate(n_members_perc = n_members / n()) %>%
+      mutate(edchatde_member_group = case_when(
+        n_members_perc <= 0.025 ~ 'innovators',
+        n_members_perc <= 0.025+0.135 ~ 'early adopters',
+        n_members_perc <= 0.025+0.135+0.34 ~ 'early majority',
+        n_members_perc <= 0.025+0.135+0.34+0.34 ~ 'late majority',
+        TRUE ~ 'laggards'
+      ))
+    out <- d %>%
+      left_join(edchatde_entries %>% select(user_id, edchatde_entry, edchatde_member_group), by='user_id')
+    #out$edchatde_member_group[out$created_at < out$edchatde_entry] <- NA # mask group before it occurs
+    return(out)
+  } else {
+    return(d)
+  }
+}

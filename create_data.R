@@ -1,12 +1,12 @@
 library(tidyverse)
 source('utils.R')
 
-fn <- 'C://TwitterGermanyProjectData/FINAL/final_prop_bot_user_21.10.rds'
-d <- readRDS(fn)
-
 # Get relevant hashtags
 hashtag_list <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1q-kQA7c8lfJt9ITvfKO1LM4sAVfOhY6lZkS0Lir8Lr4/edit#gid=0",
                                           sheet = "REPORT-DONE")
+
+fn <- 'C://TwitterGermanyProjectData/FINAL/final_prop_bot_user_21.10.rds'
+d <- readRDS(fn)
 
 hashtag_sample <- hashtag_list %>%
   select(hashtag = hashtag_new, not_k12, is_chat, is_twlz, is_subject, is_state, state, subject, community) %>%
@@ -81,6 +81,13 @@ d2 <- d2 %>%
 
 d2['n_interactions_twlz_cumsum'] <- ave(d2$n_interactions_twlz, d2$user_id, FUN=cumsum)
 d2['n_interactions_edchatde_cumsum'] <- ave(d2$n_interactions_edchat, d2$user_id, FUN=cumsum)
+
+# Add membership variables based on DOI model
+d2 <- d2 %>%
+  add_member_group(reference='twlz', n_interactions_for_membership = 3)
+
+d2 <- d2 %>%
+  add_member_group(reference='edchatde', n_interactions_for_membership = 3)
 
 # Export
 fn <- 'data/main-full.rds'
