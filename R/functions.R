@@ -119,12 +119,6 @@ add_membership_exit_variables <- function(d, exit_quantile = 0.9) {
   d <- d %>%
     left_join(exit_times, by='user_id')
 
-  #d %>%
-  #  distinct(user_id, .keep_all = TRUE) %>%
-  #  filter(is_edchatde_member) %>%
-  #  pull(user_switched) %>%
-  #  table()
-
   d['has_entered_twlz'] <- d$created_at >= d$twlz_entry
   d['has_exited_twlz'] <- d$created_at >= d$twlz_exit
   d['currently_twlz'] <- d$has_entered_twlz & (!d$has_exited_twlz)
@@ -148,6 +142,12 @@ get_descriptive_statistics <- function(d) {
 
   # TODO:
 
+  d %>%
+    distinct(user_id, .keep_all = TRUE) %>%
+    filter(is_edchatde_member) %>%
+    pull(user_switched) %>%
+    table()
+
   # How many Tweets
 
   # First tweet
@@ -169,6 +169,23 @@ get_descriptive_statistics <- function(d) {
   return(TRUE)
 }
 
+sigmoid_curve <- functioN(d) {
+
+  # Step 3: Plot time series
+  twlz_entries %>%
+    sample_n(1000) %>% # takes too long to plot all
+    arrange(n_members) %>%
+    ggplot(aes(x=twlz_entry, y=n_members_perc)) +
+    geom_point()
+
+  edchatde_entries %>%
+    sample_n(1000) %>% # takes too long to plot all
+    arrange(n_members) %>%
+    ggplot(aes(x=edchatde_entry, y=n_members_perc)) +
+    geom_point()
+
+}
+
 mosaic <- function(d) {
   d_user <- d %>%
     distinct(user_id, .keep_all=TRUE)
@@ -180,6 +197,17 @@ mosaic <- function(d) {
 
   chisq.test(d_user$twlz_member_group, d_user$edchatde_member_group)
 
+}
+
+binary_switch_modeling <- function(d) {
+
+
+  return(d)
+}
+
+time_point_ml <-function(d) {
+
+  return(d)
 }
 
 
@@ -288,4 +316,44 @@ add_member_group <- function(d, reference='twlz', n_interactions_for_membership 
   } else {
     return(d)
   }
+}
+
+#### OLD FUNCTIONS ####
+
+old_overlap_plot <- function(d) {
+
+  # User minmax
+  overlap_users <- base::intersect(edchat_users, twlz_users)
+  d_overlap <- d %>%
+    filter(user_id %in% overlap_users)
+
+  d_plot <- d_overlap %>%
+    group_by(user_id, community) %>%
+    summarize(
+      first = min(created_at) %>% as.Date(),
+      last = max(created_at) %>% as.Date()
+    ) %>%
+    ungroup() %>%
+    filter(community %in% c('edchatde', 'twlz'))
+
+  plot(1, axes=FALSE, type="n", xlab="", ylab="", xlim=c(min(d_plot$first[d_plot$community=='edchatde']), max(d_plot$last)), ylim=c(0, 10))
+  first_edchatde = min(d_plot$first[d_plot$community=='edchatde'])
+  height = 0.001
+  for (i in 1:nrow(d_plot)) {
+    start = d_plot$first[i]
+    end = d_plot$last[i]
+    if (start <= first_edchatde)
+      start = first_edchatde
+    #cat(i)
+    if (d_plot$community[i]=='twlz')
+      segments(x0=start,x1=end,y0=height,y1=height,col="red")
+    else
+      segments(x0=start,x1=end,y0=height,y1=height,col="blue")
+    if (d_plot$community[i]=='twlz')
+      height = height + 0.005
+  }
+  axis(1, d_plot$first, format(d_plot$first, "%m/%Y"), cex.axis = 1)
+
+
+  return(d)
 }
