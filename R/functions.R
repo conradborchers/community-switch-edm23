@@ -90,6 +90,56 @@ add_membership_variables <- function(d, n_interactions_for_membership = 3) {
   return(d)
 }
 
+add_membership_exit_variables <- function(d, exit_quantile = 0.9) {
+
+  twlz_exits <- d %>%
+    distinct(user_id, n_interactions_twlz_cumsum) %>%
+    group_by(user_id) %>%
+    summarize(twlz_exit_quantile = quantile(n_interactions_twlz_cumsum, exit_quantile)) %>%
+    ungroup()
+
+  edchatde_exits <- d %>%
+    distinct(user_id, n_interactions_edchatde_cumsum) %>%
+    group_by(user_id) %>%
+    summarize(edchatde_exit_quantile = quantile(n_interactions_edchatde_cumsum, exit_quantile)) %>%
+    ungroup()
+
+  d <- d %>%
+    left_join(twlz_exits, by='user_id') %>%
+    left_join(edchatde_exits, by='user_id')
+
+  exit_times <- d %>%
+    group_by(user_id) %>%
+    summarize(
+      twlz_exit = min(created_at[n_interactions_twlz_cumsum >= twlz_exit_quantile]),
+      edchatde_exit = min(created_at[n_interactions_edchatde_cumsum >= edchatde_exit_quantile])
+      ) %>%
+    ungroup()
+
+  d <- d %>%
+    left_join(exit_times, by='user_id')
+
+  #d %>%
+  #  distinct(user_id, .keep_all = TRUE) %>%
+  #  filter(is_twlz_member & is_edchatde_member)
+
+  d['has_entered_twlz'] <- d$created_at >= d$twlz_entry
+  d['has_exited_twlz'] <- d$created_at >= d$twlz_exit
+  d['currently_twlz'] <- d$has_entered_twlz & (!d$has_exited_twlz)
+
+  d['has_entered_edchatde'] <- d$created_at >= d$edchatde_entry
+  d['has_exited_edchatde'] <- d$created_at >= d$edchatde_exit
+  d['currently_edchatde'] <- d$has_entered_edchatde & (!d$has_exited_edchatde)
+
+  d['user_switched'] <- NA
+  d$user_switched[which(d$is_twlz_member & d$is_edchatde_member)] <- d$twlz_exit[which(d$is_twlz_member & d$is_edchatde_member)] >= d$edchatde_exit[which(d$is_twlz_member & d$is_edchatde_member)]
+  d['user_switch_time'] <- NA
+  d$user_switch_time[which(d$user_switched)] <- d$edchatde_exit[which(d$user_switched)]
+  d['user_has_switched'] <- d$created_at >= d$user_switch_time
+
+  return(d)
+}
+
 #### ANALYSIS FUNCTIONS ####
 
 get_descriptive_statistics <- function(d) {
@@ -138,7 +188,7 @@ concat_na_omit <- function(a, b) {
   return(res[!is.na(res)])
 }
 
-get_interaction_graph_data <- function(d) {
+get_interaction_graph_data <- function(d, parsed_only_community_tweets=TRUE) {
   # User-to-user transactions with time-stamp
 
   mentions <- str_extract_all(d$text, "(?<=@)[[:alnum:]_]+") # exclude @ automatically
@@ -157,10 +207,14 @@ get_interaction_graph_data <- function(d) {
   # %>%
   #as_tbl_graph()
 
+  # Every post itself is an interactions with the community
+  if (parsed_only_community_tweets)
+    interactions$n_interactions <- interactions$n_interactions + 1
+
   return(interactions)
 }
 
-get_n_interactions <- function(d, rename_variable='') {
+get_n_interactions <- function(d, rename_variable='', parsed_only_community_tweets=TRUE) {
   # User-to-user transactions with time-stamp
 
   mentions <- str_extract_all(d$text, "(?<=@)[[:alnum:]_]+") # exclude @ automatically
@@ -175,6 +229,10 @@ get_n_interactions <- function(d, rename_variable='') {
     mutate(interacts = map2(interacts, mentions, concat_na_omit)) %>%
     mutate(n_interactions = map_int(interacts, length)) %>%
     select(status_id, n_interactions)
+
+  # Every post itelsef is an interactions with the community
+  if (parsed_only_community_tweets)
+    interactions$n_interactions <- interactions$n_interactions + 1
 
   if (rename_variable != '')
     names(interactions)[names(interactions) == 'n_interactions'] <- rename_variable
