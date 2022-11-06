@@ -201,11 +201,84 @@ mosaic <- function(d) {
 
 binary_switch_modeling <- function(d) {
 
+  d_user <- d %>%
+    distinct(user_id, .keep_all = TRUE) %>%
+    filter(!is.na(user_switched))
+
+  var_space <- c(
+    'user_switched',
+    'edchatde_member_group',
+    'user_total_tweet_count',
+    'n_interactions_edchat',
+    'user_lifespan_days',
+    'user_following_count',
+    'user_followers_count'
+  )
+
+  d_model <- d_user %>% select(!!var_space) %>% drop_na()
+
+  # Standardize predictors to ease interpretation
+  d_model <- d_model %>%
+    mutate_if(is.numeric, scale)
+
+  m0 <- glm(user_switched ~ 1, d_model, family = 'binomial')
+
+  m1 <- glm(user_switched ~ edchatde_member_group, d_model, family = 'binomial')
+
+  m2 <- glm(user_switched ~ edchatde_member_group + user_total_tweet_count + n_interactions_edchat , d_model, family = 'binomial')
+
+  m3 <- glm(user_switched ~ edchatde_member_group + user_total_tweet_count + n_interactions_edchat+ user_lifespan_days + user_following_count + user_followers_count, d_model, family = 'binomial')
+
+  anova(m0, m1, m2, m3, test='Chisq')
+
+  summary(m3)
+
+  sjPlot::tab_model(m3)
 
   return(d)
 }
 
-time_point_ml <-function(d) {
+time_point_inference <-function(d) {
+
+  d_user <- d %>%
+    distinct(user_id, .keep_all = TRUE) %>%
+    filter(!is.na(user_switch_time))
+
+  var_space <- c(
+    'user_switch_time',
+    'edchatde_member_group',
+    'user_total_tweet_count',
+    'n_interactions_edchat',
+    'user_lifespan_days',
+    'user_following_count',
+    'user_followers_count'
+  )
+
+  d_model <- d_user %>% select(!!var_space) %>% drop_na()
+
+  # Standardize predictors to ease interpretation
+  d_model <- d_model %>%
+    mutate_if(is.numeric, scale)
+
+  # Standardize time to unix time, then Z standardize
+  d_model['user_switch_time_standard'] <- d_model$user_switch_time %>%
+    as.POSIXct(format="%Y-%m-%dT%H:%M:%OS", tz='UTC') %>%
+    as.numeric() %>%
+    scale()
+
+  m0 <- lm(user_switch_time_standard ~ 1, d_model)
+
+  m1 <- lm(user_switch_time_standard ~ edchatde_member_group, d_model)
+
+  m2 <- lm(user_switch_time_standard ~ edchatde_member_group + user_total_tweet_count + n_interactions_edchat , d_model)
+
+  m3 <- lm(user_switch_time_standard ~ edchatde_member_group + user_total_tweet_count + n_interactions_edchat+ user_lifespan_days + user_following_count + user_followers_count, d_model)
+
+  anova(m0, m1, m2, m3, test='Chisq')
+
+  summary(m3)
+
+  sjPlot::tab_model(m3)
 
   return(d)
 }

@@ -1,6 +1,6 @@
 library(targets)
 
-tar_option_set(packages = c("tidyverse"))
+tar_option_set(packages = c("tidyverse", "sjPlot"))
 
 source(here::here("R", "functions.R"))
 
