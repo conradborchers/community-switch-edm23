@@ -121,7 +121,9 @@ add_membership_exit_variables <- function(d, exit_quantile = 0.9) {
 
   #d %>%
   #  distinct(user_id, .keep_all = TRUE) %>%
-  #  filter(is_twlz_member & is_edchatde_member)
+  #  filter(is_edchatde_member) %>%
+  #  pull(user_switched) %>%
+  #  table()
 
   d['has_entered_twlz'] <- d$created_at >= d$twlz_entry
   d['has_exited_twlz'] <- d$created_at >= d$twlz_exit
@@ -132,7 +134,7 @@ add_membership_exit_variables <- function(d, exit_quantile = 0.9) {
   d['currently_edchatde'] <- d$has_entered_edchatde & (!d$has_exited_edchatde)
 
   d['user_switched'] <- NA
-  d$user_switched[which(d$is_twlz_member & d$is_edchatde_member)] <- d$twlz_exit[which(d$is_twlz_member & d$is_edchatde_member)] >= d$edchatde_exit[which(d$is_twlz_member & d$is_edchatde_member)]
+  d$user_switched[which(d$is_edchatde_member)] <- d$twlz_exit[which(d$is_edchatde_member)] >= d$edchatde_exit[which(d$is_edchatde_member)]
   d['user_switch_time'] <- NA
   d$user_switch_time[which(d$user_switched)] <- d$edchatde_exit[which(d$user_switched)]
   d['user_has_switched'] <- d$created_at >= d$user_switch_time
