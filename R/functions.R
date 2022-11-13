@@ -199,7 +199,32 @@ mosaic <- function(d) {
 
 }
 
+explanatory_model_plot(d) {
+
+  d_user <- d %>%
+    distinct(user_id, .keep_all = TRUE) %>%
+    filter(!is.na(user_switched))
+
+  # Standardize time to unix time, then Z standardize
+  d_user['user_switch_time_standard'] <- d_user$user_switch_time %>%
+    as.POSIXct(format="%Y-%m-%dT%H:%M:%OS", tz='UTC') %>%
+    as.numeric() %>%
+    scale()
+
+  #d_user %>%
+  #  ggplot(aes(edchatde_member_group, user_switch_time_standard, color=user_lifespan_days)) +
+  #    geom_point()
+
+  d_user['above_median_lifespan'] <- ifelse(d_user$user_lifespan_days>=median(d_user$user_lifespan_days), 'high', 'low')
+  d_user %>%
+    ggplot(aes(factor(edchatde_member_group, level = c('innovators', 'early adopters', 'early majority', 'late majority', 'laggards')), user_switch_time_standard, fill=above_median_lifespan)) +
+    geom_boxplot()
+
+}
+
 binary_switch_modeling <- function(d) {
+
+  # d=tar_read(d_tagged_switch)
 
   d_user <- d %>%
     distinct(user_id, .keep_all = TRUE) %>%
@@ -235,10 +260,27 @@ binary_switch_modeling <- function(d) {
 
   sjPlot::tab_model(m3)
 
+  m4 <- glm(user_switched ~ edchatde_member_group*user_lifespan_days + user_total_tweet_count + n_interactions_edchat+ user_lifespan_days + user_following_count + user_followers_count, d_model, family = 'binomial')
+
+  anova(m3, m4, test='Chisq')
+
+  summary(m4)
+
+  sjPlot::tab_model(m4)
+
+  # Robustness
+  brant::brant(m4) # Fails: Hayden to look for more?
+
+  plot(m4)
+
+  plot(m3)
+
   return(d)
 }
 
 time_point_inference <-function(d) {
+
+  # d=tar_read(d_tagged_switch)
 
   d_user <- d %>%
     distinct(user_id, .keep_all = TRUE) %>%
@@ -279,6 +321,24 @@ time_point_inference <-function(d) {
   summary(m3)
 
   sjPlot::tab_model(m3)
+
+  af <- anova(m3)
+  afss <- af$"Sum Sq"
+  print(cbind(af,PctExp=round(afss/sum(afss)*100,2)))
+
+  m4 <- lm(user_switch_time_standard ~ edchatde_member_group*user_lifespan_days + user_total_tweet_count + n_interactions_edchat+ user_lifespan_days + user_following_count + user_followers_count, d_model)
+
+  anova(m3, m4, test='Chisq')
+
+  summary(m4)
+
+  sjPlot::tab_model(m4)
+
+  af <- anova(m4)
+  afss <- af$"Sum Sq"
+  print(cbind(af,PctExp=round(afss/sum(afss)*100,2)))
+
+  plot(m4)
 
   return(d)
 }
