@@ -9,8 +9,7 @@ source(here::here("R", "functions.R"))
 targets <- list(
 
   #### SETUP ####
-  # FIXME: duplicates!!
-  tar_target(input_f, "C://TwitterGermanyProjectData/FINAL/twlz_edchatde_sample.rds"),
+  tar_target(input_f, "C://TwitterGermanyProjectData/FINAL/twlz_edchatde_sample_FIX.rds"),
   tar_target(input_d, readRDS(input_f)),
   # tar_target(input_d_cleaned, clean_data(input_d)),
   tar_target(sample_hashtags, readr::read_csv("data/sample_hashtags.csv")),

@@ -42,7 +42,22 @@ add_transaction_variables <- function(d, hashtag_list) {
   # > chats
   # [1] "#edchatde"
 
-  # FIXME: change to all_hashtags approach, with is_twlz vars, check method
+  ### FIXME:
+  # @CB Conversations are already tagged!
+  # chat have is_chat
+  # twlz tweets + replies all have is_twlz
+
+  ## these are based on:
+  # filter(str_detect(sample_hashtags_str, "#edchatde"))
+  # filter(str_detect(sample_hashtags_str, "#tlz|#lehrerzimmer|#twitterkollegium|#twitterlehrerzimmer|#twitterlz|#twlz"))
+  # which seems to be the fastest way to lookup hashtags as of now
+
+  # sample_hashtags_str = sample_hashtags %>% map_chr(paste, collapse = " ")
+  # sample_hashtags only includes hashtags from all_hashtags (propagated) that are in our final sample to further reduce lookup times
+
+  ## Conversations in Sample
+  # > d %>% filter(!is_head) %>% nrow()
+  # [1] 1074516 (replies/quotes in conversations, i.e,, not original)
 
   # Step 1: Get unique conversation IDs associated with sampled hashtags
   whitelist <- d %>%
@@ -55,11 +70,14 @@ add_transaction_variables <- function(d, hashtag_list) {
     filter(conversation_id %in% whitelist)
 
   # Step 3: Tag communities
+  # FIXME: redundant, see notes above
   out["is_twlz"] <- out$hashtags %>% map_lgl(~ match2vecs(., v2 = twlz_hashtags))
   out["is_edchatde"] <- out$hashtags %>% map_lgl(~ match2vecs(., v2 = chats))
 
   out <- out %>%
     mutate(community = ifelse(is_twlz & is_edchatde, "both", ifelse(is_twlz, "twlz", ifelse(is_edchatde, "edchatde", "neither"))))
+  # FIXME: case_when
+
 
   # Add transaction variables
 
