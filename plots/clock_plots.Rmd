@@ -1,0 +1,200 @@
+---
+title: "Clock Plots"
+output: html_document
+date: "2022-11-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+```
+
+# Wrangle
+
+```{r}
+dat <- final %>%
+  select(status_id, user_id, created_at, text, is_head, is_chat, is_twlz, is_original, is_retweet, is_quote, is_reply, date_created, year, year_month)
+```
+
+```{r}
+# set correct time zone for created_at
+dat <- dat %>% mutate(
+  created_at = created_at %>% ymd_hms(tz = "UTC", locale = "en_US.UTF-8"),
+  created_at_DE = created_at %>% with_tz(tzone = "Europe/Berlin")
+)
+
+# extract hours and month
+dat <- dat %>% mutate(
+  hour = created_at_DE %>% format("%H"),
+  # hour_num = hour %>% as.numeric(),
+  # hour_f = hour %>% factor()
+
+  month_str = created_at_DE %>% format("%m")
+  # month = created_at_DE %>% floor_date("month")
+)
+
+# categories
+dat <- dat %>% mutate(
+  community = if_else(is_chat, "#EdChatDE", "TWLZ"),
+  type = case_when(
+    !is_head ~ "Conversation",
+    is_retweet | is_quote ~ "Repost",
+    is_original ~ "Original",
+    TRUE ~ "Other"
+  )
+)
+
+dat %>% count(type)
+```
+
+
+# Plots
+
+## Compare Communities - clock
+```{r}
+# adjust for overall size by using freqs?
+community_count <- dat %>% count(community)
+
+
+stat_comp <- dat %>%
+  group_by(hour, community) %>%
+  summarise(
+    n = n()
+  )
+
+stat_comp %>%
+  ggplot(aes(x = hour, y = n, group = community, fill = community)) +
+  coord_polar(start = -0.15, direction = 1) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Community clocks", subtitle = NULL, caption = NULL, x = NULL, y = NULL) +
+  theme_light() +
+  theme(
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_blank()
+  )
+
+ggsave(filename = "clock_comparison_totals.png", width = 6, height = 5)
+```
+
+## Compare Communities - Year
+```{r}
+# adjust for overall size by using freqs?
+community_count <- dat %>% count(community)
+
+stat_comp_year <- dat %>%
+  group_by(month_str, community) %>%
+  summarise(
+    n = n()
+  )
+
+stat_comp_year %>%
+  ggplot(aes(x = month_str, y = n, group = community, fill = community)) +
+  coord_polar(start = -0.15, direction = 1) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Community clocks", subtitle = NULL, caption = NULL, x = NULL, y = NULL) +
+  theme_light() +
+  theme(
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_blank()
+  )
+
+ggsave(filename = "year_comparison_totals.png", width = 6, height = 5)
+```
+
+
+## Edchat Clock
+```{r}
+eddchat_stats <- dat %>%
+  filter(is_chat) %>%
+  group_by(hour) %>%
+  summarise(
+    n = n()
+  )
+
+eddchat_stats %>%
+  ggplot(aes(x = hour, y = n)) +
+  coord_polar(start = -0.15, direction = 1) +
+  geom_bar(stat = "identity") +
+  labs(title = "The #EdChatDE clock", subtitle = NULL, caption = NULL, x = NULL, y = NULL) +
+  theme_light() +
+  theme(
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_blank()
+  )
+
+ggsave(filename = "edchat_clock.png", width = 5, height = 5)
+```
+
+
+## TWLZ Clock with types
+```{r}
+TWLZ_stats <- dat %>%
+  filter(is_twlz) %>%
+  group_by(hour, type) %>%
+  summarise(
+    n = n()
+  )
+
+TWLZ_stats %>%
+  ggplot(aes(x = hour, y = n, fill = type)) +
+  coord_polar(start = -0.15, direction = 1) +
+  geom_bar(stat = "identity") +
+  labs(title = "The TWLZ clock", subtitle = NULL, caption = NULL, x = NULL, y = NULL) +
+  theme_light() +
+  theme(
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_blank()
+  )
+
+ggsave(filename = "TWLZ_clock.png", width = 5, height = 5)
+```
+
+## TWLZ year clock
+```{r}
+TWLZ_stats_year <- dat %>%
+  filter(is_twlz) %>%
+  group_by(month_str, type) %>%
+  summarise(
+    n = n()
+  )
+
+TWLZ_stats_year %>%
+  ggplot(aes(x = month_str, y = n, fill = type)) +
+  coord_polar(start = -0.25, direction = 1) +
+  geom_bar(stat = "identity") +
+  labs(title = "The TWLZ seasons", subtitle = NULL, caption = NULL, x = NULL, y = NULL) +
+  theme_light() +
+  theme(
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_blank()
+  )
+
+ggsave(filename = "TWLZ_year_clock.png", width = 5, height = 5)
+```
+
+## EDCHAT year clock
+```{r}
+edchat_stats_year <- dat %>%
+  filter(is_chat) %>%
+  group_by(month_str, type) %>%
+  summarise(
+    n = n()
+  )
+
+edchat_stats_year %>%
+  ggplot(aes(x = month_str, y = n, fill = type)) +
+  coord_polar(start = -0.25, direction = 1) +
+  geom_bar(stat = "identity") +
+  labs(title = "The #EdChatDE seasons", subtitle = NULL, caption = NULL, x = NULL, y = NULL) +
+  theme_light() +
+  theme(
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_blank()
+  )
+
+ggsave(filename = "edchat_year_clock.png", width = 5, height = 5)
+```
