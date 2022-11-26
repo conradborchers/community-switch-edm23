@@ -1,4 +1,5 @@
 library(targets)
+library(tarchetypes)
 
 # FYI see the new Targets Markdown interactive workflow <3
 # https://books.ropensci.org/targets/literate-programming.html#target-markdown
@@ -7,9 +8,8 @@ tar_option_set(packages = c("tidyverse", "sjPlot"))
 source(here::here("R", "functions.R"))
 
 targets <- list(
-
   #### SETUP ####
-  tar_target(input_f, "C://TwitterGermanyProjectData/FINAL/twlz_edchatde_sample_FIX.rds"),
+  tar_target(input_f, here::here("data", "twlz_edchatde_sample_FIX.rds")),
   tar_target(input_d, readRDS(input_f)),
   # tar_target(input_d_cleaned, clean_data(input_d)),
   tar_target(sample_hashtags, readr::read_csv("data/sample_hashtags.csv")),
@@ -25,3 +25,5 @@ targets <- list(
   # Inferential model of user switching with model table
   # RMSE of machine-learned point in time prediction (Python, Hayden?)
 )
+
+
