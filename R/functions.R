@@ -212,12 +212,12 @@ get_interaction_graph_data <- function(d, parsed_only_community_tweets = TRUE) {
   cat("\n get_interaction_graph_data...")
 
   # User-to-user transactions with time-stamp
-  mentions <- str_extract_all(d$text, "(?<=@)[[:alnum:]_]+") # exclude @ automatically
-  mentions[which(d$is_retweet)] <- vector(mode = "list", length = sum(d$is_retweet))
+  all_mentions <- str_extract_all(d$text, "(?<=@)[[:alnum:]_]+") # exclude @ automatically
+  all_mentions[which(d$is_retweet)] <- vector(mode = "list", length = sum(d$is_retweet))
 
   # Each row is user a interacting with tweet of user b in second column
   interactions <- d %>%
-    mutate(mentions = mentions) %>%
+    # mutate(mentions = all_mentions) %>%
     select(status_id, created_at, matches("user_id"), mentions, is_twlz, is_edchatde) %>%
     mutate(interacts = map2(quoted_user_id, retweeted_user_id, concat_na_omit)) %>%
     mutate(interacts = map2(interacts, replied_user_id, concat_na_omit)) %>%
@@ -534,4 +534,3 @@ time_point_inference <- function(d) {
 
   return(d)
 }
-
