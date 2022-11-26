@@ -8,18 +8,22 @@ dat <- dat %>% mutate(
   repost_count = retweet_count + quote_count
 )
 
-# FIXME: have interacts globally available in targets!
-all_mentions <- dat$text %>% str_extract_all("(?<=@)[[:alnum:]_]+") # exclude @ automatically
-all_mentions[which(dat$is_retweet)] <- vector(mode = "list", length = sum(dat$is_retweet)) # add NULL to retweets
 
-dat <- dat %>% mutate(
-  mentions_clean = all_mentions,
-  interacts = pmap(
-    list(quoted_user_id, retweeted_user_id, replied_user_id, mentions_clean),
-    ~ c(...) %>% discard(is.na)
-  ),
-  n_interactions = interacts %>% map_int(length)
-)
+# FIXME: have interacts globally available in targets!
+
+# TODO: run network first!
+
+# all_mentions <- dat$text %>% str_extract_all("(?<=@)[[:alnum:]_]+") # exclude @ automatically
+# all_mentions[which(dat$is_retweet)] <- vector(mode = "list", length = sum(dat$is_retweet)) # add NULL to retweets
+#
+# dat <- dat %>% mutate(
+#   mentions_clean = all_mentions,
+#   interacts = pmap(
+#     list(quoted_user_id, retweeted_user_id, replied_user_id, mentions_clean),
+#     ~ c(...) %>% discard(is.na)
+#   ),
+#   n_interactions = interacts %>% map_int(length)
+# )
 
 
 ### Add cutoff time ####
