@@ -3,17 +3,16 @@ library(lubridate)
 
 dat <- tar_read("d_tagged_switch")
 
-all <- dat %>% mutate(
+dat <- dat %>% mutate(
   created_at = created_at %>% lubridate::ymd_hms(tz = "UTC", locale = "en_US.UTF-8"),
   repost_count = retweet_count + quote_count
 )
 
 # FIXME: have interacts globally available in targets!
+all_mentions <- dat$text %>% str_extract_all("(?<=@)[[:alnum:]_]+") # exclude @ automatically
+all_mentions[which(dat$is_retweet)] <- vector(mode = "list", length = sum(dat$is_retweet)) # add NULL to retweets
 
-all_mentions <- test$text %>% str_extract_all("(?<=@)[[:alnum:]_]+") # exclude @ automatically
-all_mentions[which(test$is_retweet)] <- vector(mode = "list", length = sum(test$is_retweet)) # add NULL to retweets
-
-test <- test %>% mutate(
+dat <- dat %>% mutate(
   mentions_clean = all_mentions,
   interacts = pmap(
     list(quoted_user_id, retweeted_user_id, replied_user_id, mentions_clean),
@@ -23,29 +22,40 @@ test <- test %>% mutate(
 )
 
 
-### Add last post time and cutoff time
+### Add cutoff time ####
 
-# FIXME: cut of date not exact time of day 100 days prior
+# variable named based on lag value
+add_lag_vars <- function(dat, lag_days) {
+  users_grouped <- all %>%
+    group_by(user_id) %>%
+    mutate(
+      edchatde_exit_date = edchatde_exit %>% as.Date(),
+      "user_time_cutoff_{{lag_days}}" := edchatde_exit_date - lubridate::days(lag_days)
+    )
 
-lag_days <- 100
-users_grouped <- all %>%
-  group_by(user_id) %>%
-  mutate(
-    # edchatde_exit = max(created_at),
-    edchatde_exit_date = edchatde_exit %>% as.Date(),
-    user_time_cutoff = edchatde_exit_date - days(lag_days)
-  )
+  result <- users_grouped %>% ungroup()
+  return(result)
+}
 
+dat <- dat %>%
+  add_lag_vars(30) %>%
+  add_lag_vars(60) %>%
+  add_lag_vars(90)
+
+
+user_grouped <- dat %>% group_by(user_id)
 user_ids <- users_grouped %>% group_keys()
 
+# split into grouped list
 user_split <- users_grouped %>%
   group_split()
 
-### Filter down to cutoff period
+### Filter user subframes down to cutoff period
 
 user_cut <- user_split %>%
   map(~ .x %>% filter(created_at > user_time_cutoff))
 
+# make stats
 user_stats <- tibble(
   user_id = user_ids,
 
@@ -66,8 +76,13 @@ user_stats <- tibble(
   n_lag_interactions = user_cut %>% map_int(~ .x$n_interactions %>% sum())
 )
 
-# Plot tweets before leave ------------------------------------------------
 
+# Export ------------------------------------------------------------------
+
+dat <- dat %>% left_join(user_stats, by = "user_id")
+
+
+# Plot tweets before leave ------------------------------------------------
 quit_stat <- users_grouped %>%
   ungroup() %>%
   mutate(
