@@ -6,7 +6,6 @@ d <- d %>% mutate(
   is_mentioning = n_mentions > 0
 )
 
-
 set.seed(42)
 test <- d %>%
   filter(is_edchatde_member) %>% # in edchat
@@ -47,8 +46,10 @@ nodes <- edges %>%
   count(from, sort = TRUE) %>%
   select(user = from, n_interactions = n)
 # full_join(test %>% select(interacts), by = c("user" = "interacts"))
+# add interacts outside of dataset to node list
 
-ig <- igraph::graph_from_data_frame(d = edges, directed = FALSE)
+# vertices = nodes (node attributes)
+ig <- igraph::graph_from_data_frame(d = edges, directed = FALSE, vertices = NULL) # FIXME: directed?
 graph <- ig %>% tidygraph::as_tbl_graph()
 
 # Stats -------------------------------------------------------------------
@@ -63,6 +64,7 @@ graph_stats <- graph %>%
     is_isolated = node_is_isolated(),
     is_leaf = node_is_leaf(),
     subgroup_louvain = group_louvain()
+    # group_edge_betweenness() ???
   ) %>%
   as_tibble() %>%
   rename(user_id = name)
@@ -75,7 +77,6 @@ graph_stats <- graph %>%
 # group_edge_betweenness()
 
 # Export ------------------------------------------------------------------
-
 
 
 d <- d %>% left_join(graph_stats, by = "user_id")
