@@ -99,8 +99,6 @@ run_social <- function(d) {
   nodes <- edges %>%
     count(from, sort = TRUE) %>%
     select(user = from, n_interactions = n)
-  # full_join(test %>% select(interacts), by = c("user" = "interacts"))
-  # add interacts outside of dataset to node list
 
   # vertices = nodes (node attributes)
   ig <- igraph::graph_from_data_frame(d = edges, directed = FALSE, vertices = NULL)
@@ -116,9 +114,7 @@ run_social <- function(d) {
       centrality_eigen = centrality_eigen(),
       is_isolated = node_is_isolated(),
       is_leaf = node_is_leaf(),
-      subgroup_louvain = group_louvain()#,
-      #bridging_score = node_bridging_score()
-      # group_edge_betweenness() ???
+      subgroup_louvain = group_louvain()
     ) %>%
     as_tibble() %>%
     rename(user_id = name)
@@ -131,66 +127,15 @@ run_social <- function(d) {
 
 #### MASTER FUNCTIONS ####
 
-#
-clean_data <- function(dat) {
-  # select vars, reduce payload
-  # check dupes
-  # check relevant vars
-  # etc.
-
-  return(TRUE)
-}
-
-
 add_transaction_variables <- function(d, hashtag_list) {
   ### Sample relevant hashtags
   twlz_hashtags <- hashtag_list %>%
     filter(is_twlz) %>%
     pull(hashtag)
 
-  # LK FIXED: there are *6* TWLZ hashtags!!
-  # > twlz_hashtags
-  # [1] "#tlz"                 "#lehrerzimmer"        "#twitterkollegium"    "#twitterlehrerzimmer"
-  # [5] "#twitterlz"           "#twlz"
-
   chats <- hashtag_list %>%
     filter(is_chat) %>%
     pull(hashtag)
-  # > chats
-  # [1] "#edchatde"
-
-  ### FIXME:
-  # @CB Conversations are already tagged!
-  # chat have is_chat
-  # twlz tweets + replies all have is_twlz
-
-  ## these are based on:
-  # filter(str_detect(sample_hashtags_str, "#edchatde"))
-  # filter(str_detect(sample_hashtags_str, "#tlz|#lehrerzimmer|#twitterkollegium|#twitterlehrerzimmer|#twitterlz|#twlz"))
-  # which seems to be the fastest way to lookup hashtags as of now
-
-  # sample_hashtags_str = sample_hashtags %>% map_chr(paste, collapse = " ")
-  # sample_hashtags only includes hashtags from all_hashtags (propagated) that are in our final sample to further reduce lookup times
-
-  ## Conversations in Sample
-  # > d %>% filter(!is_head) %>% nrow()
-  # [1] 1074516 (replies/quotes in conversations, i.e,, not original)
-
-  # Step 1: Get unique conversation IDs associated with sampled hashtags
-  # whitelist <- d %>%
-  #   filter(hashtags %>% map_lgl(match2vecs)) %>%
-  #   pull(conversation_id) %>%
-  #   unique()
-
-  # Step 2: Filter these conversation IDs
-  # out <- d %>%
-  #   filter(conversation_id %in% whitelist)
-
-  # Step 3: Tag communities
-  # FIXME: redundant, see notes above
-  # out["is_twlz"] <- out$hashtags %>% map_lgl(~ match2vecs(., v2 = twlz_hashtags))
-  # out["is_edchatde"] <- out$hashtags %>% map_lgl(~ match2vecs(., v2 = chats))
-
 
   d <- d %>%
     mutate(
@@ -456,149 +401,6 @@ old_overlap_plot <- function(d) {
   }
   axis(1, d_plot$first, format(d_plot$first, "%m/%Y"), cex.axis = 1)
 
-
-  return(d)
-}
-
-
-#### ANALYSIS FUNCTIONS ####
-
-get_descriptive_statistics <- function(d) {
-
-  # d <- targets::tar_read(d_modeling)
-
-  # TODO:
-
-  d %>%
-    distinct(user_id, .keep_all = TRUE) %>%
-    filter(is_edchatde_member) %>%
-    pull(user_switched) %>%
-    table()
-
-  # How many Tweets
-
-  # First tweet
-
-  # Last Tweets
-
-  twlz_users <- d$user_id[d$is_twlz] %>% unique()
-  edchat_users <- d$user_id[d$is_edchatde] %>% unique()
-
-  # N users stats
-  length(base::intersect(edchat_users, twlz_users))
-  length(edchat_users)
-  length(base::intersect(edchat_users, twlz_users)) / length(edchat_users)
-
-  length(base::intersect(twlz_users, edchat_users))
-  length(twlz_users)
-  length(base::intersect(edchat_users, twlz_users)) / length(twlz_users)
-
-  return(TRUE)
-}
-
-sigmoid_curve <- function(d) {
-
-  # Step 3: Plot time series
-  twlz_entries %>%
-    sample_n(1000) %>% # takes too long to plot all
-    arrange(n_members) %>%
-    ggplot(aes(x = twlz_entry, y = n_members_perc)) +
-    geom_point()
-
-  edchatde_entries %>%
-    sample_n(1000) %>% # takes too long to plot all
-    arrange(n_members) %>%
-    ggplot(aes(x = edchatde_entry, y = n_members_perc)) +
-    geom_point()
-}
-
-mosaic <- function(d) {
-  d_user <- d %>%
-    distinct(user_id, .keep_all = TRUE)
-
-  xtabs(~ twlz_member_group + edchatde_member_group, d_user) %>%
-    mosaicplot(shade = TRUE)
-
-  xtabs(~ twlz_member_group + edchatde_member_group, d_user)
-
-  chisq.test(d_user$twlz_member_group, d_user$edchatde_member_group)
-}
-
-explanatory_model_plot <- function(d) {
-  d_user <- d %>%
-    distinct(user_id, .keep_all = TRUE) %>%
-    filter(!is.na(user_switched))
-
-  # Standardize time to unix time, then Z standardize
-  d_user["user_switch_time_standard"] <- d_user$user_switch_time %>%
-    as.POSIXct(format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC") %>%
-    as.numeric() %>%
-    scale()
-
-  # d_user %>%
-  #  ggplot(aes(edchatde_member_group, user_switch_time_standard, color=user_lifespan_days)) +
-  #    geom_point()
-
-  d_user["above_median_lifespan"] <- ifelse(d_user$user_lifespan_days >= median(d_user$user_lifespan_days), "high", "low")
-  d_user %>%
-    ggplot(aes(factor(edchatde_member_group, level = c("innovators", "early adopters", "early majority", "late majority", "laggards")), user_switch_time_standard, fill = above_median_lifespan)) +
-    geom_boxplot()
-}
-
-binary_switch_modeling <- function(d) {
-  # d=tar_read(d_tagged_switch)
-
-  d_user <- d %>%
-    distinct(user_id, .keep_all = TRUE) %>%
-    filter(!is.na(user_switched))
-
-  var_space <- c(
-    "user_switched",
-    "edchatde_member_group",
-    "user_total_tweet_count",
-    "n_interactions_edchat",
-    "user_lifespan_days",
-    "user_following_count",
-    "user_followers_count"
-  )
-
-  d_model <- d_user %>%
-    select(!!var_space) %>%
-    drop_na()
-
-  # Standardize predictors to ease interpretation
-  d_model <- d_model %>%
-    mutate_if(is.numeric, scale)
-
-  m0 <- glm(user_switched ~ 1, d_model, family = "binomial")
-
-  m1 <- glm(user_switched ~ edchatde_member_group, d_model, family = "binomial")
-
-  m2 <- glm(user_switched ~ edchatde_member_group + user_total_tweet_count + n_interactions_edchat, d_model, family = "binomial")
-
-  m3 <- glm(user_switched ~ edchatde_member_group + user_total_tweet_count + n_interactions_edchat + user_lifespan_days + user_following_count + user_followers_count, d_model, family = "binomial")
-
-  anova(m0, m1, m2, m3, test = "Chisq")
-
-  summary(m3)
-
-  sjPlot::tab_model(m3)
-
-  m4 <- glm(user_switched ~ edchatde_member_group * user_lifespan_days + user_total_tweet_count + n_interactions_edchat + user_lifespan_days + user_following_count + user_followers_count, d_model, family = "binomial")
-
-  anova(m3, m4, test = "Chisq")
-
-  summary(m4)
-
-  sjPlot::tab_model(m4)
-
-  # Robustness
-  brant::brant(m4) # Fails: Hayden to look for more?
-
-  plot(m4)
-
-  plot(m3)
-
   return(d)
 }
 
@@ -625,71 +427,4 @@ additional_lk_plots <- function(d) {
 
   ggsave("plots/quitters.png", width = 8, height = 5)
   return(TRUE)
-}
-
-time_point_inference <- function(d) {
-
-  # d=tar_read(d_tagged_switch)
-
-  d_user <- d %>%
-    distinct(user_id, .keep_all = TRUE) %>%
-    filter(!is.na(user_switch_time))
-
-  var_space <- c(
-    "user_switch_time",
-    "edchatde_member_group",
-    "user_total_tweet_count",
-    "n_interactions_edchat",
-    "user_lifespan_days",
-    "user_following_count",
-    "user_followers_count"
-  )
-
-  d_model <- d_user %>%
-    select(!!var_space) %>%
-    drop_na()
-
-  # Standardize predictors to ease interpretation
-  d_model <- d_model %>%
-    mutate_if(is.numeric, scale)
-
-  # Standardize time to unix time, then Z standardize
-  d_model["user_switch_time_standard"] <- d_model$user_switch_time %>%
-    as.POSIXct(format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC") %>%
-    as.numeric() %>%
-    scale()
-
-  m0 <- lm(user_switch_time_standard ~ 1, d_model)
-
-  m1 <- lm(user_switch_time_standard ~ edchatde_member_group, d_model)
-
-  m2 <- lm(user_switch_time_standard ~ edchatde_member_group + user_total_tweet_count + n_interactions_edchat, d_model)
-
-  m3 <- lm(user_switch_time_standard ~ edchatde_member_group + user_total_tweet_count + n_interactions_edchat + user_lifespan_days + user_following_count + user_followers_count, d_model)
-
-  anova(m0, m1, m2, m3, test = "Chisq")
-
-  summary(m3)
-
-  sjPlot::tab_model(m3)
-
-  af <- anova(m3)
-  afss <- af$"Sum Sq"
-  print(cbind(af, PctExp = round(afss / sum(afss) * 100, 2)))
-
-  m4 <- lm(user_switch_time_standard ~ edchatde_member_group * user_lifespan_days + user_total_tweet_count + n_interactions_edchat + user_lifespan_days + user_following_count + user_followers_count, d_model)
-
-  anova(m3, m4, test = "Chisq")
-
-  summary(m4)
-
-  sjPlot::tab_model(m4)
-
-  af <- anova(m4)
-  afss <- af$"Sum Sq"
-  print(cbind(af, PctExp = round(afss / sum(afss) * 100, 2)))
-
-  plot(m4)
-
-  return(d)
 }

@@ -51,8 +51,6 @@ length(edchat_users)
 length(twlz_users)
 ```
 
-
-
 ```{r mosaic_plot, cache=TRUE}
 
 d_user <- d %>%
@@ -118,7 +116,7 @@ d_model$centrality_closeness[is.infinite(d_model$centrality_closeness)] <- 0
 d_model <- d_model %>%
   mutate_if(is.numeric, scale)
 
-# Fit + Searcg
+# Fit + Search
 m <- glm(user_switched ~ ., d_model, family = "binomial")
 mm <- MASS::stepAIC(m, direction = 'backward')
 sjPlot::tab_model(mm)
@@ -127,4 +125,91 @@ plot(mm)
 
 
 ```
+
+```{r explan_plot, cache=TRUE}
+
+d_user <- d %>%
+  distinct(user_id, .keep_all = TRUE) %>%
+  filter(!is.na(user_switched))
+
+# Standardize time to unix time, then Z standardize
+d_user["user_switch_time_standard"] <- d_user$user_switch_time %>%
+  as.POSIXct(format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC") %>%
+  as.numeric() %>%
+  scale()
+
+d_user["above_median_lifespan"] <- ifelse(d_user$user_lifespan_days >= median(d_user$user_lifespan_days), "high", "low")
+d_user %>%
+  ggplot(aes(factor(edchatde_member_group, level = c("innovators", "early adopters", "early majority", "late majority", "laggards")), user_switch_time_standard, fill = above_median_lifespan)) +
+  geom_boxplot()
+
+
+```
+
+```{r time_switch_model, cache=TRUE}
+
+d_user <- d %>%
+  distinct(user_id, .keep_all = TRUE) %>%
+  filter(!is.na(user_switch_time))
+
+var_space <- c(
+  "user_switch_time",
+  "edchatde_member_group",
+  "user_total_tweet_count",
+  "n_interactions_edchat",
+  "user_lifespan_days",
+  "user_following_count",
+  "user_followers_count",
+  "user_tweets_per_day",
+  "is_teacher",
+  "centrality_degree",
+  "centrality_closeness",
+  "centrality_betweenness",
+  "centrality_eigen",
+  "repost_count",
+  "n_lag_posted_tweets_all",
+  "n_lag_posted_tweets_original",
+  "n_lag_likes",
+  "n_lag_reposts",
+  "n_lag_replies",
+  "n_lag_convs",
+  "n_lag_mentions",
+  "n_lag_interactions"
+)
+
+d_model <- d_user %>%
+  select(!!var_space) %>%
+  mutate_if(is.numeric, ~replace(., is.na(.), 0)) %>% 
+  drop_na()
+
+# Log centralities
+d_model$centrality_degree <- d_model$centrality_degree %>% log()
+d_model$centrality_closeness <- d_model$centrality_closeness %>% log()
+d_model$centrality_betweenness <- d_model$centrality_betweenness %>% log()
+d_model$centrality_eigen <- d_model$centrality_eigen %>% log()
+
+d_model$centrality_degree[is.infinite(d_model$centrality_degree)] <- 0
+d_model$centrality_betweenness[is.infinite(d_model$centrality_betweenness)] <- 0
+d_model$centrality_eigen[is.infinite(d_model$centrality_eigen)] <- 0
+d_model$centrality_closeness[is.infinite(d_model$centrality_closeness)] <- 0
+
+# Standardize predictors to ease interpretation
+d_model <- d_model %>%
+  mutate_if(is.numeric, scale)
+
+# Standardize time to unix time, then Z standardize
+d_model["user_switch_time_standard"] <- d_model$user_switch_time %>%
+  as.POSIXct(format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC") %>%
+  as.numeric() %>%
+  scale()
+
+# Fit + Search
+m <- lm(user_switch_time_standard ~ ., d_model)
+mm <- MASS::stepAIC(m, direction = 'backward')
+sjPlot::tab_model(mm)
+
+plot(mm)
+
+```
+
 

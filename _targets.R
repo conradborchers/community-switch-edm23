@@ -1,9 +1,6 @@
 library(targets)
 library(tarchetypes)
 
-# FYI see the new Targets Markdown interactive workflow <3
-# https://books.ropensci.org/targets/literate-programming.html#target-markdown
-
 tar_option_set(packages = c("tidyverse", "sjPlot", "tidygraph", "igraph", "lubridate"))
 source(here::here("R", "functions.R"))
 
@@ -20,12 +17,6 @@ targets <- list(
   tar_target(d_tagged_switch, d_tagged_membership %>% add_membership_exit_variables(exit_quantile = 0.9)),
   tar_target(d_social, d_tagged_switch %>% run_social()),
   tar_target(d_modeling, d_social %>% run_user_social())
-
-  #### ANALYSIS OUTPUT ####
-  # Descriptive table of community sizes and overlap
-  # Mosaic plot user types
-  # Inferential model of user switching with model table
-  # RMSE of machine-learned point in time prediction (Python, Hayden?)
 )
 
 
