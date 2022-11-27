@@ -5,3 +5,5 @@
 .DS_Store
 *.rds
 _targets/
+*.html
+report_cache/

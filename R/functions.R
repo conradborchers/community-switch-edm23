@@ -37,7 +37,7 @@ run_user_social <- function(dat) {
 
   # make stats
   user_stats <- tibble(
-    user_id = user_ids,
+    user_id = user_ids %>% unlist(),
 
     # stats
     n_lag_posted_tweets_all = user_cut %>% map_int(nrow),
@@ -103,7 +103,7 @@ run_social <- function(d) {
   # add interacts outside of dataset to node list
 
   # vertices = nodes (node attributes)
-  ig <- igraph::graph_from_data_frame(d = edges, directed = TRUE, vertices = NULL)
+  ig <- igraph::graph_from_data_frame(d = edges, directed = FALSE, vertices = NULL)
   graph <- ig %>% tidygraph::as_tbl_graph()
 
   # Stats -------------------------------------------------------------------
@@ -116,7 +116,8 @@ run_social <- function(d) {
       centrality_eigen = centrality_eigen(),
       is_isolated = node_is_isolated(),
       is_leaf = node_is_leaf(),
-      subgroup_louvain = group_louvain()
+      subgroup_louvain = group_louvain()#,
+      #bridging_score = node_bridging_score()
       # group_edge_betweenness() ???
     ) %>%
     as_tibble() %>%
@@ -280,6 +281,7 @@ add_membership_exit_variables <- function(d, exit_quantile = 0.9) {
 
   d["user_switched"] <- NA
   d$user_switched[which(d$is_edchatde_member)] <- d$twlz_exit[which(d$is_edchatde_member)] >= d$edchatde_exit[which(d$is_edchatde_member)]
+  d$user_switched[is.na(d$user_switched) & d$is_edchatde_member] <- FALSE
   d["user_switch_time"] <- NA
   d$user_switch_time[which(d$user_switched)] <- d$edchatde_exit[which(d$user_switched)]
   d["user_has_switched"] <- d$created_at >= d$user_switch_time
@@ -463,6 +465,8 @@ old_overlap_plot <- function(d) {
 
 get_descriptive_statistics <- function(d) {
 
+  # d <- targets::tar_read(d_modeling)
+
   # TODO:
 
   d %>%
@@ -596,6 +600,31 @@ binary_switch_modeling <- function(d) {
   plot(m3)
 
   return(d)
+}
+
+additional_lk_plots <- function(d) {
+  ungroup() %>%
+    mutate(
+      days_before_last = date_created - edchatde_exit_date,
+      days_before_last_int = days_before_last %>% as.integer()
+    )
+
+  quit_time <- quit_stat %>%
+    count(days_before_last_int) %>%
+    arrange(desc(days_before_last_int)) %>%
+    filter(days_before_last_int > -1000) %>%
+    filter(days_before_last_int != 0)
+
+  quit_time %>%
+    ggplot(aes(x = days_before_last_int, y = n)) +
+    geom_bar(stat = "identity")
+
+  quit <- quit_stat %>%
+    ggplot(aes(x = days_before_last_int)) +
+    geom_histogram()
+
+  ggsave("plots/quitters.png", width = 8, height = 5)
+  return(TRUE)
 }
 
 time_point_inference <- function(d) {
