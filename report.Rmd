@@ -5,7 +5,7 @@ date: "2022-11-27"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=TRUE}
 library(targets)
 library(tidyverse)
 knitr::opts_chunk$set(echo = TRUE)
@@ -116,6 +116,9 @@ d_model$centrality_closeness[is.infinite(d_model$centrality_closeness)] <- 0
 d_model <- d_model %>%
   mutate_if(is.numeric, scale)
 
+d_model$edchatde_member_group <- d_model$edchatde_member_group %>% 
+  factor(levels = c("innovators", "early adopters", "early majority", "late majority", "laggards"))
+
 # Fit + Search
 m <- glm(user_switched ~ ., d_model, family = "binomial")
 mm <- MASS::stepAIC(m, direction = 'backward')
@@ -203,7 +206,8 @@ d_model["user_switch_time_standard"] <- d_model$user_switch_time %>%
   as.numeric() %>%
   scale()
 
-d_model$edchatde_member_group <- d_model$edchatde_member_group %>% factor()
+d_model$edchatde_member_group <- d_model$edchatde_member_group %>% 
+  factor(levels = c("innovators", "early adopters", "early majority", "late majority", "laggards"))
 
 d_model <- d_model %>% 
   select(-user_switch_time)
