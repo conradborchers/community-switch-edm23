@@ -1,3 +1,133 @@
+run_user_social <- function(dat) {
+
+  dat <- dat %>% mutate(
+    created_at = created_at %>% lubridate::ymd_hms(tz = "UTC", locale = "en_US.UTF-8"),
+    repost_count = retweet_count + quote_count
+  )
+
+  ### Add cutoff time ###
+  # variable named based on lag value
+  add_lag_vars <- function(dat, lag_days) {
+    users_grouped <- dat %>%
+      group_by(user_id) %>%
+      mutate(
+        switch_date = user_switch_time %>% as.Date(),
+        "user_time_cutoff_{{lag_days}}" := switch_date - lubridate::days(lag_days)
+      )
+    result <- users_grouped %>% ungroup()
+    return(result)
+  }
+
+  dat <- dat %>%
+    add_lag_vars(30) #%>%
+    #add_lag_vars(60) %>%
+    #add_lag_vars(90)
+
+  users_grouped <- dat %>% group_by(user_id)
+  user_ids <- users_grouped %>% group_keys()
+
+  # split into grouped list
+  user_split <- users_grouped %>%
+    group_split()
+
+  ### Filter user subframes down to cutoff period
+  user_cut <- user_split %>%
+    #(function(x){return(x[1:1000])}) %>%
+    map(~ .x %>% filter(created_at > user_time_cutoff_30 & created_at <= switch_date))
+
+  # make stats
+  user_stats <- tibble(
+    user_id = user_ids,
+
+    # stats
+    n_lag_posted_tweets_all = user_cut %>% map_int(nrow),
+    n_lag_posted_tweets_original = user_cut %>% map_int(~ .x$is_original %>% sum()),
+
+    # Social
+    n_lag_likes = user_cut %>% map_int(~ .x$like_count %>% sum()),
+    n_lag_reposts = user_cut %>% map_int(~ .x$repost_count %>% sum()),
+    n_lag_replies = user_cut %>% map_int(~ .x$reply_count %>% sum()),
+    n_lag_convs = user_cut %>% map_int(~ .x %>%
+                                         filter(!is_head) %>%
+                                         nrow()),
+    # Connect
+    n_lag_mentions = user_cut %>% map_int(~ .x$n_mentions %>% sum()),
+    n_lag_interactions = user_cut %>% map_int(~ .x$n_interactions_edchat %>% sum() %>% as.integer())
+  )
+
+  # Export ------------------------------------------------------------------
+  dat <- dat %>% left_join(user_stats, by = "user_id")
+
+  return(dat)
+}
+
+run_social <- function(d) {
+  d <- d %>% mutate(
+    is_mentioning = n_mentions > 0
+  )
+
+  test <- d %>%
+    filter(is_edchatde_member) %>% # in edchat
+    #filter(user_switched) %>% # only switchers
+    filter(!user_has_switched) %>% # before switch
+    #sample_n(10000) %>%
+    I()
+
+  # select relevant vars, reduce payload
+  test <- test %>% select(
+    text, user_id, status_id, is_retweet, is_mentioning, is_quote, is_reply, is_head, is_original, is_twlz, is_edchatde,
+    is_quote, conversation_id, created_at, quoted_user_id, retweeted_user_id,
+    replied_user_id, -mentions
+  )
+
+  all_mentions <- test$text %>% str_extract_all("(?<=@)[[:alnum:]_]+") # exclude @ automatically
+  all_mentions[which(test$is_retweet)] <- vector(mode = "list", length = sum(test$is_retweet)) # add NULL to retweets
+
+  test <- test %>% mutate(
+    mentions_clean = all_mentions,
+    interacts = pmap(
+      list(quoted_user_id, retweeted_user_id, replied_user_id, mentions_clean),
+      ~ c(...) %>% discard(is.na)
+    )
+  )
+
+  # first two cols are from to, rest edge attributes
+  edges <- test %>%
+    unchop(interacts) %>%
+    select(from = user_id, to = interacts, created_at, is_retweet, is_mentioning, is_quote, is_reply)
+
+  nodes <- edges %>%
+    count(from, sort = TRUE) %>%
+    select(user = from, n_interactions = n)
+  # full_join(test %>% select(interacts), by = c("user" = "interacts"))
+  # add interacts outside of dataset to node list
+
+  # vertices = nodes (node attributes)
+  ig <- igraph::graph_from_data_frame(d = edges, directed = TRUE, vertices = NULL)
+  graph <- ig %>% tidygraph::as_tbl_graph()
+
+  # Stats -------------------------------------------------------------------
+  graph_stats <- graph %>%
+    activate(nodes) %>%
+    mutate(
+      centrality_degree = centrality_degree(),
+      centrality_closeness = centrality_closeness(),
+      centrality_betweenness = centrality_betweenness(),
+      centrality_eigen = centrality_eigen(),
+      is_isolated = node_is_isolated(),
+      is_leaf = node_is_leaf(),
+      subgroup_louvain = group_louvain()
+      # group_edge_betweenness() ???
+    ) %>%
+    as_tibble() %>%
+    rename(user_id = name)
+
+  d <- d %>% left_join(graph_stats, by = "user_id")
+
+  return(d)
+}
+
+
 #### MASTER FUNCTIONS ####
 
 #
@@ -7,7 +137,7 @@ clean_data <- function(dat) {
   # check relevant vars
   # etc.
 
-  return()
+  return(TRUE)
 }
 
 
