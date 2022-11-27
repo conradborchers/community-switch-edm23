@@ -203,6 +203,11 @@ d_model["user_switch_time_standard"] <- d_model$user_switch_time %>%
   as.numeric() %>%
   scale()
 
+d_model$edchatde_member_group <- d_model$edchatde_member_group %>% factor()
+
+d_model <- d_model %>% 
+  select(-user_switch_time)
+
 # Fit + Search
 m <- lm(user_switch_time_standard ~ ., d_model)
 mm <- MASS::stepAIC(m, direction = 'backward')
