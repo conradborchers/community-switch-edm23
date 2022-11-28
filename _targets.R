@@ -16,7 +16,8 @@ targets <- list(
   tar_target(d_tagged_membership, d_added_variables %>% add_membership_variables(n_interactions_for_membership = 1)),
   tar_target(d_tagged_switch, d_tagged_membership %>% add_membership_exit_variables(exit_quantile = 0.9)),
   tar_target(d_social, d_tagged_switch %>% run_social()),
-  tar_target(d_modeling, d_social %>% run_user_social())
+  tar_target(d_modeling, d_social %>% run_user_social()),
+  tar_target(d_analysis, d_modeling %>% run_postprocessing())
 )
 
 

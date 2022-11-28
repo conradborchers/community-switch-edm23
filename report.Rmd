@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r read_data}
-d <- tar_read(d_modeling)
+d <- tar_read(d_analysis)
 ```
 
 ```{r descriptives, cache=TRUE}
@@ -74,18 +74,18 @@ d_user <- d %>%
 var_space <- c(
   "user_switched",
   "edchatde_member_group",
-  "user_total_tweet_count",
   "n_interactions_edchat",
   "user_lifespan_days",
   "user_following_count",
   "user_followers_count",
-  "user_tweets_per_day",
+  "n_tweets_edchat_per_day",
   "is_teacher",
   "centrality_degree",
   "centrality_closeness",
   "centrality_betweenness",
-  "centrality_eigen",
-  "repost_count"#,
+  "centrality_eigen"#,
+  #"user_total_tweet_count",
+  #"repost_count",
   #"n_lag_posted_tweets_all",
   #"n_lag_posted_tweets_original",
   #"n_lag_likes",
@@ -171,13 +171,13 @@ var_space <- c(
   "centrality_eigen",
   "repost_count",
   "n_lag_posted_tweets_all",
-  "n_lag_posted_tweets_original",
   "n_lag_likes",
   "n_lag_reposts",
   "n_lag_replies",
-  "n_lag_convs",
   "n_lag_mentions",
   "n_lag_interactions"
+  #"n_lag_posted_tweets_original",
+  #"n_lag_convs",
 )
 
 d_model <- d_user %>%

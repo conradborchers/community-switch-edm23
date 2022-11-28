@@ -1,3 +1,28 @@
+run_postprocessing <- function(d) {
+  ##
+  # Post-processing to adjust variables from original data set the sub-sample was taken from
+  ##
+
+  n_tweets_edchat <- d %>%
+    filter(is_edchatde) %>%
+    count(user_id, name = 'n_tweets_edchat')
+
+  n_days_active <- d %>%
+    filter(is_edchatde) %>%
+    group_by(user_id) %>%
+    summarize(n_days_active_edchatde = length(unique(date_created))) %>%
+    ungroup()
+
+  join_this <- inner_join(n_tweets_edchat, n_days_active, by = "user_id") %>%
+    mutate(n_tweets_edchat_per_day = n_tweets_edchat / n_days_active_edchatde) %>%
+    select(user_id, n_tweets_edchat_per_day)
+
+  res <- d %>%
+    left_join(join_this, by = "user_id")
+
+  return(res)
+}
+
 run_user_social <- function(dat) {
 
   dat <- dat %>% mutate(
