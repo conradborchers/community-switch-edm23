@@ -1,3 +1,71 @@
+get_fit <- function(times) {
+  times2 <- times %>%
+    mutate(enter = as.numeric(enter))
+  out <- nls(rel ~ SSlogis(log(enter), Asym, xmid, scal), times2)
+  res <- out$m$deviance()
+  return(res)
+}
+
+get_times <- function(d, n_interactions = 1) {
+  d["is_edchatde_member"] <- d$n_interactions_edchatde_cumsum > n_interactions
+  edchatde_entries <- d %>%
+    filter(is_edchatde_member) %>%
+    group_by(user_id) %>%
+    summarize(edchatde_entry = min(created_at)) %>%
+    ungroup()
+  chat_entries <- edchatde_entries %>%
+    pull(edchatde_entry) %>%
+    (function(v){return(v[!is.na(v)])}) %>%
+    sort()
+  times <- tibble(
+    enter = chat_entries,
+    #n = 1:length(chat_entries),
+    rel = 1:length(chat_entries) / length(chat_entries)
+  )
+  return(times)
+}
+
+run_doi_gof <- function(d) {
+  # d <- targets::tar_read(d_analysis)
+
+  # TODO
+  d_user <- d %>%
+    distinct(user_id, .keep_all = TRUE)
+
+  # Sanity check
+  d_user %>%
+    pull(edchatde_member_group) %>%
+    table() %>%
+    (function(tab){return(tab/sum(tab))})
+
+  # Main
+  times <- d_user %>% get_times(n_interactions = 1)
+
+  times %>% ggplot(aes(enter, rel)) + geom_point()
+
+  times %>% get_fit()
+
+  # Multiple
+  ii <- c(); fits <- c()
+  for (i in 1:10) {
+    cat(i, '\n')
+    ii <- c(ii, i)
+    fits <- c(fits, d_user %>% get_times(n_interactions = i) %>% get_fit())
+  }
+
+  data.frame(
+    i=ii,
+    fit=fits
+  )
+
+  d_user %>% get_times(n_interactions = 2) %>% get_fit()
+  d_user %>% get_times(n_interactions = 2) %>% ggplot(aes(enter, rel)) + geom_point()
+
+  # 2 better than 1 -> elbow point
+
+  return(TRUE)
+}
+
 run_postprocessing <- function(d) {
   ##
   # Post-processing to adjust variables from original data set the sub-sample was taken from
