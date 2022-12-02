@@ -61,7 +61,7 @@ run_doi_gof <- function(d) {
   d_user %>% get_times(n_interactions = 2) %>% get_fit()
   d_user %>% get_times(n_interactions = 2) %>% ggplot(aes(enter, rel)) + geom_point()
 
-  # 2 better than 1 -> elbow point
+  # 2 better than 1 -> elbow point # Residual sum of squares to a simple fit of a logistic growth curve
 
   return(TRUE)
 }

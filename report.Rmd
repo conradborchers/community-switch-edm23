@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 d <- tar_read(d_analysis)
 ```
 
-```{r descriptives, cache=TRUE}
+```{r descriptives, cache=FALSE}
 
 # Size
 nrow(d)
@@ -51,7 +51,7 @@ length(edchat_users)
 length(twlz_users)
 ```
 
-```{r mosaic_plot, cache=TRUE}
+```{r mosaic_plot, cache=FALSE}
 
 d_user <- d %>%
   distinct(user_id, .keep_all = TRUE)
@@ -65,7 +65,7 @@ chisq.test(d_user$twlz_member_group, d_user$edchatde_member_group)
 
 ```
 
-```{r modeling, cache=TRUE}
+```{r modeling, cache=FALSE}
 
 d_user <- d %>%
   distinct(user_id, .keep_all = TRUE) %>%
@@ -129,7 +129,7 @@ plot(mm)
 
 ```
 
-```{r explan_plot, cache=TRUE}
+```{r explan_plot, cache=FALSE}
 
 d_user <- d %>%
   distinct(user_id, .keep_all = TRUE) %>%
@@ -149,7 +149,7 @@ d_user %>%
 
 ```
 
-```{r time_switch_model, cache=TRUE}
+```{r time_switch_model, cache=FALSE}
 
 d_user <- d %>%
   distinct(user_id, .keep_all = TRUE) %>%
@@ -174,8 +174,8 @@ var_space <- c(
   "n_lag_likes",
   "n_lag_reposts",
   "n_lag_replies",
-  "n_lag_mentions",
-  "n_lag_interactions"
+  "n_lag_mentions"#,
+  #"n_lag_interactions"
   #"n_lag_posted_tweets_original",
   #"n_lag_convs",
 )

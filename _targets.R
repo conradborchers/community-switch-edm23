@@ -13,7 +13,7 @@ targets <- list(
 
   #### ANALYSIS DATA SET ####
   tar_target(d_added_variables, input_d %>% add_transaction_variables(sample_hashtags)),
-  tar_target(d_tagged_membership, d_added_variables %>% add_membership_variables(n_interactions_for_membership = 1)),
+  tar_target(d_tagged_membership, d_added_variables %>% add_membership_variables(n_interactions_for_membership = 2)),
   tar_target(d_tagged_switch, d_tagged_membership %>% add_membership_exit_variables(exit_quantile = 0.9)),
   tar_target(d_social, d_tagged_switch %>% run_social()),
   tar_target(d_modeling, d_social %>% run_user_social()),
