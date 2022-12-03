@@ -64,6 +64,23 @@ times %>% IQR() %>% lubridate::seconds_to_period()
 times %>% quantile(0.25)
 times %>% quantile(0.75)
 
+suppressWarnings(
+tmp <- d %>% 
+  group_by(user_id) %>% 
+  summarize(
+    min_overlap = min(created_at[currently_twlz & currently_edchatde], na.rm = TRUE),
+    max_overlap = max(created_at[currently_twlz & currently_edchatde], na.rm = TRUE)
+  ) %>% 
+  ungroup() %>% 
+  mutate(diff = max_overlap - min_overlap)
+)
+
+tmp %>% 
+  filter(!is.infinite(min_overlap)) %>% 
+  mutate(mean_diff = mean(diff, na.rm = TRUE) %>% as.numeric() %>% lubridate::seconds_to_period()) %>% 
+  mutate(sd_diff = sd(diff, na.rm = TRUE) %>% as.numeric() %>% lubridate::seconds_to_period())
+
+nrow(tmp)
 ```
 
 ```{r mosaic_plot, cache=FALSE}
