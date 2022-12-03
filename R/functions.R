@@ -323,7 +323,7 @@ add_membership_exit_variables <- function(d, exit_quantile = 0.9) {
   d$user_switched[which(d$is_edchatde_member)] <- d$twlz_exit[which(d$is_edchatde_member)] > d$edchatde_exit[which(d$is_edchatde_member)]
   d$user_switched[is.na(d$user_switched) & d$is_edchatde_member] <- FALSE
   d["user_switch_time"] <- NA
-  d$user_switch_time[which(d$user_switched)] <- pmax(c(d$edchatde_exit[which(d$user_switched)], d$twlz_entry[which(d$user_switched)]), na.rm = TRUE)
+  d$user_switch_time[which(d$user_switched)] <- pmax(d$edchatde_exit[which(d$user_switched)], d$twlz_entry[which(d$user_switched)], na.rm = TRUE)
   d["user_has_switched"] <- d$created_at >= d$user_switch_time
 
   return(d)
