@@ -186,7 +186,9 @@ d_user %>%
 ```{r time_switch_model, cache=FALSE}
 
 d_user <- d %>%
-  distinct(user_id, .keep_all = TRUE) %>%
+  filter(!is.na(user_switched)) %>% 
+  arrange(desc(user_switch_time)) %>% 
+  distinct(user_id, .keep_all = TRUE) %>% 
   filter(!is.na(user_switch_time))
 
 var_space <- c(
@@ -203,12 +205,12 @@ var_space <- c(
   "centrality_closeness",
   "centrality_betweenness",
   "centrality_eigen",
-  "repost_count",
-  "n_lag_posted_tweets_all",
-  "n_lag_likes",
-  "n_lag_reposts",
-  "n_lag_replies",
-  "n_lag_mentions"#,
+  "repost_count"#,
+  #"n_lag_posted_tweets_all",
+  #"n_lag_likes",
+  #"n_lag_reposts",
+  #"n_lag_replies",
+  #"n_lag_mentions"#,
   #"n_lag_interactions"
   #"n_lag_posted_tweets_original",
   #"n_lag_convs",
