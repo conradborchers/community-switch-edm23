@@ -46,16 +46,18 @@ run_doi_gof <- function(d) {
   times %>% get_fit()
 
   # Multiple
-  ii <- c(); fits <- c()
+  ii <- c(); fits <- c(); nn <- c()
   for (i in 1:10) {
     cat(i, '\n')
     ii <- c(ii, i)
     fits <- c(fits, d_user %>% get_times(n_interactions = i) %>% get_fit())
+    nn <- c(nn, d_user %>% get_times(n_interactions = i) %>% nrow())
   }
 
   data.frame(
     i=ii,
-    fit=fits
+    fit=fits,
+    nn=nn
   )
 
   d_user %>% get_times(n_interactions = 2) %>% get_fit()
@@ -318,10 +320,10 @@ add_membership_exit_variables <- function(d, exit_quantile = 0.9) {
   d["currently_edchatde"] <- d$has_entered_edchatde & (!d$has_exited_edchatde)
 
   d["user_switched"] <- NA
-  d$user_switched[which(d$is_edchatde_member)] <- d$twlz_exit[which(d$is_edchatde_member)] >= d$edchatde_exit[which(d$is_edchatde_member)]
+  d$user_switched[which(d$is_edchatde_member)] <- d$twlz_exit[which(d$is_edchatde_member)] > d$edchatde_exit[which(d$is_edchatde_member)]
   d$user_switched[is.na(d$user_switched) & d$is_edchatde_member] <- FALSE
   d["user_switch_time"] <- NA
-  d$user_switch_time[which(d$user_switched)] <- d$edchatde_exit[which(d$user_switched)]
+  d$user_switch_time[which(d$user_switched)] <- pmax(c(d$edchatde_exit[which(d$user_switched)], d$twlz_entry[which(d$user_switched)]), na.rm = TRUE)
   d["user_has_switched"] <- d$created_at >= d$user_switch_time
 
   return(d)
