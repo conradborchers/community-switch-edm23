@@ -1,0 +1,569 @@
+---
+title: 'Clean Report'
+output: html_document
+date: "2022-12-11"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+# some are #conflicted:
+# library(viridis)
+# library(ggsci)
+# library(scales)
+# library(RColorBrewer)
+# library(papaja)
+# library(ggrepel)
+# library(gridExtra)
+# library(ggpubr)
+```
+
+
+```{r data}
+# d <- targets::tar_read("d_analysis")
+d <- readRDS(here::here("data", "d_analysis.rds"))
+
+# small <- d %>%
+#   select("status_id", "user_id", "quote_count", "retweet_count", "year", "is_chat", "is_twlz", twlz_member_group, edchatde_member_group,
+#
+#
+#
+# var_space <- c(
+#   "user_switch_time",
+#   "edchatde_member_group",
+#   "is_teacher",
+#   # "user_total_tweet_count",
+#   "n_interactions_edchat",
+#   "user_lifespan_days",
+#   "user_following_count",
+#   "user_followers_count",
+#   "n_tweets_edchat_per_day",
+#   "user_repost_count", # "repost_count"
+#   "centrality_degree",
+#   "centrality_closeness",
+#   "centrality_betweenness",
+#   "centrality_eigen")
+```
+
+# Plots
+
+```{r}
+# Subsets
+chat <- d %>%
+  filter(is_chat)
+
+twlz <- d %>%
+  filter(is_twlz)
+```
+
+
+```{r}
+# my_cols <- c("#00AFBB", "#E7B800", "#FC4E07")
+# scales::show_col(my_cols)
+
+npg <- ggsci::pal_npg()(9)
+npg
+scales::show_col(npg)
+
+# scale_color_brewer(palette = "Plasma")
+# ggsci::scale_color_npg()
+# xlim(2012, 2021) +
+```
+
+
+## Time-series - Tweets
+```{r}
+# FIXME: how to deal with overlap?
+
+chat_stat <- chat %>%
+  count(year) %>%
+  mutate(
+    community = "EdChatDE"
+  ) %>%
+  add_row(year = "2012", n = 0, community = "EdChatDE") # start at 0
+
+twlz_stat <- twlz %>%
+  count(year) %>%
+  mutate(
+    community = "TWLZ"
+  ) %>%
+  add_row(year = "2007", n = 0, community = "TWLZ") # start at 0
+
+time_stat <- bind_rows(chat_stat, twlz_stat)
+time_stat <- time_stat %>%
+  mutate(
+    year = year %>% as.numeric()
+  ) %>%
+  arrange(year)
+
+years <- c(2007, 2009, 2011, 2013, 2015, 2017, 2019, 2021)
+
+g_tweets <- time_stat %>%
+  ggplot(aes(x = year, y = n, color = community)) +
+  geom_line() +
+  scale_color_manual(values = c("#E64B35FF", "#3C5488FF")) +
+  scale_y_log10(
+    breaks = scales::trans_breaks("log10", function(x) 10^x),
+    labels = scales::trans_format("log10", scales::math_format(10^.x))
+  ) +
+  guides(color = guide_legend(reverse = TRUE)) +
+  scale_x_continuous(labels = as.character(years), breaks = years) +
+  papaja::theme_apa(box = TRUE) +
+  labs(x = "Year", y = expression(paste("Tweets ", (log[10]))), color = "Community") + # "Year"
+  theme(legend.position = "bottom", legend.title = element_blank(), axis.title.x = element_blank())
+
+g_tweets
+# ggsave()
+```
+
+## Time-series - Users
+```{r}
+chat_stat_users <- chat %>%
+  group_by(year) %>%
+  summarise(
+    n_users = user_id %>% n_distinct()
+  ) %>%
+  mutate(community = "EdChatDE") %>%
+  add_row(year = "2012", n_users = 0, community = "EdChatDE") # start at 0
+
+twlz_stat_users <- twlz %>%
+  group_by(year) %>%
+  summarise(
+    n_users = user_id %>% n_distinct()
+  ) %>%
+  mutate(community = "TWLZ") %>%
+  add_row(year = "2007", n_users = 0, community = "TWLZ") # start at 0
+
+time_stat_users <- bind_rows(chat_stat_users, twlz_stat_users)
+time_stat_users <- time_stat_users %>%
+  mutate(
+    year = year %>% as.numeric()
+  ) %>%
+  arrange(year)
+
+years <- c(2007, 2009, 2011, 2013, 2015, 2017, 2019, 2021)
+
+g_users <- time_stat_users %>%
+  ggplot(aes(x = year, y = n_users, color = community)) +
+  geom_line() +
+  scale_color_manual(values = c("#E64B35FF", "#3C5488FF")) +
+  guides(color = guide_legend(reverse = TRUE)) +
+  scale_y_log10(
+    breaks = scales::trans_breaks("log10", function(x) 10^x),
+    labels = scales::trans_format("log10", scales::math_format(10^.x))
+  ) +
+  scale_x_continuous(labels = as.character(years), breaks = years) +
+  papaja::theme_apa(box = TRUE) +
+  labs(x = "Year", y = expression(paste("Users ", (log[10]))), color = "Community") +
+  theme(legend.position = "bottom", legend.title = element_blank())
+
+g_users
+```
+
+```{r}
+my_theming <- theme(
+  axis.title.y = element_text(margin = margin(r = -.2, unit = "pt"))
+)
+
+g_tweets <- g_tweets + my_theming
+g_users <- g_users + my_theming
+
+# gridExtra::grid.arrange()
+
+
+## ggpubr
+g_stacked <- ggpubr::ggarrange(g_tweets, g_users,
+  ncol = 1, nrow = 2, common.legend = TRUE,
+  legend = "bottom"
+)
+g_stacked
+
+# g_stacked %>% ggpubr::ggexport(filename = "timeseries_stacked_export.png")
+# ggsave(plot = g_stacked, filename = "timeseries_stacked.png", height = 8, width = 5)
+
+## patchwork
+# library(patchwork)
+# combined <- g_tweets + g_users + patchwork::plot_layout(guides = "collect")
+# theme(legend.position = "bottom")
+```
+
+
+
+## Mosaic
+```{r}
+d_user <- d %>%
+  distinct(user_id, .keep_all = TRUE) %>%
+  select(twlz_member_group, edchatde_member_group) %>%
+  na.omit() # FIXME: What about the NAs?
+
+xtabs(~ twlz_member_group + edchatde_member_group, d_user) %>%
+  mosaicplot(shade = TRUE)
+
+members <- xtabs(~ twlz_member_group + edchatde_member_group, d_user)
+
+# install.packages("janitor")
+# install.packages("tabyls")
+
+members_tab <- d_user %>%
+  janitor::tabyl(twlz_member_group, edchatde_member_group)
+
+d_user %>%
+  ggplot(aes(x = twlz_member_group, y = edchatde_member_group)) +
+  geom_count()
+
+d_user %>%
+  ggplot(aes(x = twlz_member_group, y = edchatde_member_group)) +
+  geom_jitter(shape = 1) +
+  papaja::theme_apa(box = TRUE) +
+  labs(x = "TWLZ Member Group", y = "EdChatDE Member Group") +
+  my_theming +
+  scale_x_discrete(labels = scales::wrap_format(10)) +
+  scale_y_discrete(labels = scales::wrap_format(10))
+
+
+g_jitter <- d_user %>%
+  ggplot(aes(x = twlz_member_group, y = edchatde_member_group)) +
+  geom_jitter() +
+  papaja::theme_apa(box = TRUE) +
+  labs(x = "TWLZ Member Group", y = "#EdChatDE Member Group") +
+  # theme(axis.title.y = element_text(margin = margin(r = -.1, unit = "pt"))) +
+  scale_x_discrete(labels = scales::wrap_format(10)) +
+  scale_y_discrete(labels = scales::wrap_format(10)) +
+  coord_fixed()
+
+g_jitter
+# ggsave(plot = g_jitter, filename = "group_jitter.png", height = 4.5, width = 5)
+
+xtabs(~ twlz_member_group + edchatde_member_group, d_user)
+```
+
+
+```{r}
+npg <- ggsci::pal_npg()(9)
+npg
+scales::show_col(npg)
+
+c("#00A087FF", "#DC0000FF") %>% scales::show_col()
+```
+
+
+## Timing matters boxplot
+```{r}
+d_user_switch <- d %>%
+  filter(!is.na(user_switched)) %>%
+  arrange(desc(user_switched)) %>%
+  distinct(user_id, .keep_all = TRUE)
+
+# Standardize time to unix time, then Z standardize
+d_user_switch["user_switch_time_standard"] <- d_user_switch$user_switch_time %>%
+  as.POSIXct(format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC") %>%
+  as.numeric() %>%
+  scale()
+
+d_user_switch["above_median_lifespan"] <- ifelse(d_user_switch$user_lifespan_days >= median(d_user_switch$user_lifespan_days), "above", "below")
+
+d_user_switch <- d_user_switch %>%
+  mutate(
+    edchatde_member_group_f = factor(edchatde_member_group, level = c("innovators", "early adopters", "early majority", "late majority", "laggards"))
+  )
+
+g_switch <- d_user_switch %>%
+  ggplot(aes(
+    x = edchatde_member_group_f,
+    y = user_switch_time_standard,
+    fill = above_median_lifespan
+  )) +
+  scale_x_discrete(labels = scales::wrap_format(10)) +
+  geom_boxplot(position = position_dodge2(0.75, preserve = "single")) + # center and keep same size individually
+  scale_fill_manual(values = c("#DC0000FF", "#00A087FF")) +
+  papaja::theme_apa(box = TRUE) +
+  labs(x = "#EdChatDE Member Group", y = "User Switch Time", fill = "Median Lifespan") +
+  theme(legend.position = "bottom") +
+  theme(legend.margin = margin(t = -5, unit = "pt"))
+g_switch
+
+# ggsave(plot = g_switch, filename = "switch_explain.png", height = 4, width = 6)
+```
+
+
+## Descriptives
+```{r}
+# apa_table()
+# printnum(descriptives[, -1])
+```
+
+
+Pixidust: https://github.com/nutterb/pixiedust/blob/master/README.md
+xtable: https://cran.r-project.org/web/packages/xtable/xtable.pdf
+tables: https://cran.r-project.org/web/packages/tables/vignettes/tables.pdf
+stargazer: https://cran.r-project.org/web/packages/stargazer/index.html
+Hmisc::latex
+https://twitter.com/polesasunder/status/464132152347475968/photo/1
+kableExtra: https://cran.r-project.org/web/packages/kableExtra/index.html
+
+# Regression Models
+```{r}
+user_join <- d %>%
+  group_by(user_id) %>%
+  summarise(
+    user_repost_count = sum(retweet_count) + sum(quote_count)
+  ) %>%
+  select(user_id, user_repost_count)
+
+d_users <- d %>%
+  filter(!is.na(user_switched)) %>%
+  arrange(desc(user_switch_time)) %>%
+  distinct(user_id, .keep_all = TRUE) %>%
+  filter(!is.na(user_switch_time)) %>%
+  left_join(user_join, by = "user_id")
+
+
+var_space <- c(
+  "user_switch_time",
+  "edchatde_member_group",
+  "is_teacher",
+  # "user_total_tweet_count",
+  "n_interactions_edchat",
+  "user_lifespan_days",
+  "user_following_count",
+  "user_followers_count",
+  "n_tweets_edchat_per_day",
+  "user_repost_count", # "repost_count"
+  "centrality_degree",
+  "centrality_closeness",
+  "centrality_betweenness",
+  "centrality_eigen"
+
+  # "n_lag_posted_tweets_all",
+  # "n_lag_likes",
+  # "n_lag_reposts",
+  # "n_lag_replies",
+  # "n_lag_mentions"#,
+  # "n_lag_interactions"
+  # "n_lag_posted_tweets_original",
+  # "n_lag_convs"
+)
+
+d_model <- d_users %>%
+  select(!!var_space) %>%
+  mutate_if(is.numeric, ~ replace(., is.na(.), 0)) %>%
+  drop_na()
+
+# Log centralities
+d_model$centrality_degree <- d_model$centrality_degree %>% log()
+d_model$centrality_closeness <- d_model$centrality_closeness %>% log()
+d_model$centrality_betweenness <- d_model$centrality_betweenness %>% log()
+d_model$centrality_eigen <- d_model$centrality_eigen %>% log()
+
+d_model$centrality_degree[is.infinite(d_model$centrality_degree)] <- 0
+d_model$centrality_betweenness[is.infinite(d_model$centrality_betweenness)] <- 0
+d_model$centrality_eigen[is.infinite(d_model$centrality_eigen)] <- 0
+d_model$centrality_closeness[is.infinite(d_model$centrality_closeness)] <- 0
+
+# Standardize predictors to ease interpretation
+d_model <- d_model %>%
+  mutate_if(is.numeric, scale)
+
+# Standardize time to unix time, then Z standardize
+d_model["user_switch_time_standard"] <- d_model$user_switch_time %>%
+  as.POSIXct(format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC") %>%
+  as.numeric() %>%
+  scale()
+
+d_model$edchatde_member_group <- d_model$edchatde_member_group %>%
+  factor(levels = c("innovators", "early adopters", "early majority", "late majority", "laggards"))
+
+d_model <- d_model %>%
+  select(-user_switch_time)
+
+# Fit + Search
+m <- lm(user_switch_time_standard ~ . + 0, d_model)
+summary(m)
+
+mm <- MASS::stepAIC(m, direction = "backward")
+summary(mm)
+sjPlot::tab_model(mm)
+
+# plot(mm)
+```
+
+
+## Print model
+```{r}
+## Kable
+library(broom)
+library(papaja)
+library(kableExtra)
+
+# TODO: \usepackage{booktabs}
+
+mm_stats <- mm %>%
+  broom::tidy() %>%
+  select(term, estimate, std.error, p.value) %>%
+  add_row(.before = 1, term = "EdChatDE DOI group") %>%
+  mutate(
+    p.value = scales::pvalue(p.value)
+    # term =
+  )
+
+mm_stats %>%
+  kbl(
+    format = "html",
+    booktabs = TRUE,
+    # caption = "Coefficient-Level Estimates for a Model Fitted to Estimate Variation in Peer Ratings.",
+    col.names = c("Effect", "Estimate", "SE", "p"),
+    digits = c(0, 2, 2, 3)
+  )
+```
+
+
+
+```{r}
+# library(stargazer)
+
+
+# out_mm <- papaja::apa_print(mm)
+# out_mm$table %>%
+#   apa_table(out_mm$table) %>%
+#   clipr::write_clip()
+
+# apa_table()
+
+# margins -> AME
+
+mm_stats <- broom::tidy(mm)
+# stargazer(mm, type = "text")
+```
+
+Plant yield indeed differed between groups, `r out$full_result`.
+
+## Logistic regression
+```{r logistic}
+d_user <- d %>%
+  filter(!is.na(user_switched)) %>%
+  arrange(desc(user_switched)) %>%
+  distinct(user_id, .keep_all = TRUE)
+
+var_space_log <- c(
+  "user_switched",
+  "edchatde_member_group",
+  "n_interactions_edchat",
+  "user_lifespan_days",
+  "user_following_count",
+  "user_followers_count",
+  "n_tweets_edchat_per_day",
+  "is_teacher",
+  "centrality_degree",
+  "centrality_closeness",
+  "centrality_betweenness",
+  "centrality_eigen" # ,
+  # "user_total_tweet_count",
+  # "repost_count",
+  # "n_lag_posted_tweets_all",
+  # "n_lag_posted_tweets_original",
+  # "n_lag_likes",
+  # "n_lag_reposts",
+  # "n_lag_replies",
+  # "n_lag_convs",
+  # "n_lag_mentions",
+  # "n_lag_interactions"
+)
+
+d_model <- d_user %>%
+  select(!!var_space_log) %>%
+  mutate_if(is.numeric, ~ replace(., is.na(.), 0)) %>%
+  drop_na()
+
+# Log centralities
+d_model$centrality_degree <- d_model$centrality_degree %>% log()
+d_model$centrality_closeness <- d_model$centrality_closeness %>% log()
+d_model$centrality_betweenness <- d_model$centrality_betweenness %>% log()
+d_model$centrality_eigen <- d_model$centrality_eigen %>% log()
+
+d_model$centrality_degree[is.infinite(d_model$centrality_degree)] <- 0
+d_model$centrality_betweenness[is.infinite(d_model$centrality_betweenness)] <- 0
+d_model$centrality_eigen[is.infinite(d_model$centrality_eigen)] <- 0
+d_model$centrality_closeness[is.infinite(d_model$centrality_closeness)] <- 0
+
+# Standardize predictors to ease interpretation
+d_model <- d_model %>%
+  mutate(across(where(is.numeric), ~ .x %>%
+    scale() %>%
+    as.numeric()))
+# mutate_if(, )
+
+d_model$edchatde_member_group <- d_model$edchatde_member_group %>%
+  factor(levels = c("innovators", "early adopters", "early majority", "late majority", "laggards"))
+
+# Fit + Search
+# m_lk <- glm(user_switched ~ ., d_model, family = binomial(link = "logit"))
+m_cb <- glm(user_switched ~ ., d_model, family = "binomial") #  drop the intercept!
+summary(m_cb)
+
+
+# df$y_pred = predict(model, df, type="response")
+
+# m_cb_stats <- broom::tidy(m_cb)
+# m_lk_stats <- broom::tidy(m_lk)
+
+
+log <- MASS::stepAIC(m_cb, direction = "backward")
+summary(log)
+
+sjPlot::tab_model(log)
+
+plot(log)
+performance::check_model(log)
+```
+
+
+## Print Logistic Regression
+```{r}
+## Kable
+library(broom)
+# library(papaja)
+library(kableExtra)
+
+# TODO: \usepackage{booktabs}
+
+# test_odds <- log %>% broom::tidy(exp = TRUE)
+
+log_stats <- log %>%
+  broom::tidy() %>%
+  # add_row(.before = 1, term = "EdChatDE DOI group") %>%
+  mutate(
+    .after = "term",
+    OR = exp(estimate),
+    AME = c(NA, margins::margins(log) %>% summary() %>% pull("AME")),
+    p.value = scales::pvalue(p.value)
+  ) %>%
+  select(term, OR, AME, p.value)
+
+
+# 􏰀 Marginal effects at representative values (MERs)
+# 􏰀 Marginal effects at means (MEMs)
+# 􏰀 Average marginal effects (AMEs)
+
+# doesn't work with scale attributes, needs to parse back to numeric
+# log_stats$AME <- margins::margins(log, type = "response")
+log_stats$AME <- c(NA, margins::margins(log) %>% summary() %>% pull(AME)) # NA for intercept
+
+AME <- margins::margins(log) %>%
+  summary() %>%
+  pull(AME)
+
+
+log_stats %>%
+  filter(term != "(Intercept)") %>%
+  kableExtra::kbl(
+    format = "latex",
+    booktabs = TRUE,
+    # caption = "Coefficient-Level Estimates for a Model Fitted to Estimate Variation in Peer Ratings.",
+    col.names = c("Effect", "OR", "AME", "p"),
+    digits = c(0, 2, 2, 3)
+  ) %>%
+  clipr::write_clip()
+```
