@@ -1,3 +1,14 @@
+export_gradients <- function(d) {
+  # d <- targets::tar_read(d_analysis)
+  d_user <- d %>%
+    distinct(user_id, .keep_all = TRUE)
+  tab <- xtabs(~ twlz_member_group + edchatde_member_group, d_user)
+  questionr::chisq.residuals(tab, digits = 2, std = FALSE, raw = FALSE) %>%
+    as.data.frame() %>%
+    saveRDS('gradients.rds')
+  return(TRUE)
+}
+
 get_fit <- function(times) {
   times2 <- times %>%
     mutate(enter = as.numeric(enter))
