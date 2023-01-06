@@ -42,6 +42,8 @@ tab <- d %>%
     pull(user_switched) %>%
     table()
 
+tab
+
 # Users that switched
 round(tab[2] / sum(tab), 4) * 100
 
@@ -51,6 +53,7 @@ edchat_users <- d$user_id[d$is_edchatde_member] %>% unique()
 # N users stats
 length(edchat_users)
 length(twlz_users)
+length(base::intersect(twlz_users, edchat_users))
 
 times <- d %>% 
   distinct(user_id, .keep_all = TRUE) %>% 
