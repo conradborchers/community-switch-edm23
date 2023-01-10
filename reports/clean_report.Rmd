@@ -261,11 +261,18 @@ xtabs(~ twlz_member_group + edchatde_member_group, d_user)
 ## Jitter with Gradients
 
 ```{r}
-d_user <- d %>%
+doi <- c("innovators", "early adopters", "early majority", "late majority", "laggards")
+
+d_user_groups <- d %>%
   distinct(user_id, .keep_all = TRUE) %>%
   select(twlz_member_group, edchatde_member_group) %>%
+  na.omit() %>%
   mutate(group = str_glue("{twlz_member_group}|{edchatde_member_group}")) %>%
-  na.omit() # FIXME: What about the NAs?
+  mutate(
+    edchatde_member_group_f = factor(edchatde_member_group, level = doi),
+    twlz_member_group_f = factor(twlz_member_group, level = doi)
+  )
+
 
 gradients <- readRDS(here::here("data", "gradients.rds"))
 
@@ -275,27 +282,30 @@ gradients <- gradients %>%
 
 gradients$Freq %>% summary()
 
-
-d_user <- d_user %>% left_join(gradients, by = c("group" = "group"))
+d_user_groups <- d_user_groups %>% left_join(gradients, by = c("group" = "group"))
 ```
 
 
 ```{r}
 # https://ggplot2.tidyverse.org/reference/guide_colourbar.html
 
-d_user %>%
-  ggplot(aes(x = twlz_member_group, y = edchatde_member_group, color = Freq)) +
-  geom_jitter(show.legend = TRUE) +
-  # geom_tile() +
-  scale_color_viridis_c(breaks = c(-6, -3, 0, 3, 6), labels = scales::label_number(accuracy = 2)) +
-  # scale_color_continuous(type = "viridis") +
-  # guide_colorsteps(aes(nbin = 6)) +
-  papaja::theme_apa(box = TRUE) +
-  labs(x = "TWLZ Member Group", y = "#EdChatDE Member Group") +
-  # theme(axis.title.y = element_text(margin = margin(r = -.1, unit = "pt"))) +
+plot_jitter <-
+  d_user_groups %>%
+  ggplot(aes(x = twlz_member_group_f, y = edchatde_member_group_f, color = Freq)) +
+  geom_jitter() +
+  scale_color_viridis_c(name = "", breaks = seq(-6, 6, 3)) +
   scale_x_discrete(labels = scales::wrap_format(10)) +
   scale_y_discrete(labels = scales::wrap_format(10)) +
-  coord_fixed()
+  labs(x = "TWLZ Member Group", y = "#EdChatDE Member Group") +
+  coord_fixed() +
+  papaja::theme_apa(box = TRUE) +
+  theme(
+    axis.title.y = element_text(margin = margin(r = 3, unit = "pt")),
+    legend.margin = margin(l = -3, unit = "pt")
+  ) +
+  theme(legend.position = "right", legend.text = element_text(margin = margin(l = -2.5, unit = "pt")))
+
+ggsave(plot = plot_jitter, filename = "group_jitter_freq.png", height = 4.5, width = 5.5)
 ```
 
 
@@ -313,8 +323,8 @@ c("#00A087FF", "#DC0000FF") %>% scales::show_col()
 ```{r}
 d_user_switch <- d %>%
   filter(!is.na(user_switched)) %>%
-  arrange(desc(user_switched)) %>%
-  distinct(user_id, .keep_all = TRUE)
+  distinct(user_id, .keep_all = TRUE) %>%
+  arrange(desc(user_switched))
 
 # Standardize time to unix time, then Z standardize
 d_user_switch["user_switch_time_standard"] <- d_user_switch$user_switch_time %>%
@@ -322,29 +332,49 @@ d_user_switch["user_switch_time_standard"] <- d_user_switch$user_switch_time %>%
   as.numeric() %>%
   scale()
 
-d_user_switch["above_median_lifespan"] <- ifelse(d_user_switch$user_lifespan_days >= median(d_user_switch$user_lifespan_days), "above", "below")
+# d_user_switch["above_median_lifespan"] <- ifelse(d_user_switch$user_lifespan_days >= median(d_user_switch$user_lifespan_days), "above", "below")
 
 d_user_switch <- d_user_switch %>%
   mutate(
-    edchatde_member_group_f = factor(edchatde_member_group, level = c("innovators", "early adopters", "early majority", "late majority", "laggards"))
+    edchatde_member_group_f = factor(edchatde_member_group,
+      level = c("innovators", "early adopters", "early majority", "late majority", "laggards")
+    ),
+    is_teacher = is_teacher %>% factor(
+      levels = c("TRUE", "FALSE"),
+      labels = c("Teacher", "Non-Teacher")
+    )
   )
 
-g_switch <- d_user_switch %>%
+
+g_switch <-
+  d_user_switch %>%
   ggplot(aes(
     x = edchatde_member_group_f,
     y = user_switch_time_standard,
-    fill = above_median_lifespan
+    fill = is_teacher
   )) +
   scale_x_discrete(labels = scales::wrap_format(10)) +
   geom_boxplot(position = position_dodge2(0.75, preserve = "single")) + # center and keep same size individually
-  scale_fill_manual(values = c("#DC0000FF", "#00A087FF")) +
+  scale_fill_manual(
+    name = "",
+    # limits = c("TRUE", "FALSE"),
+    # labels = c("Teacher", "Non-Teacher"),
+    values = c("#DC0000FF", "#00A087FF")
+  ) +
+  labs(x = "#EdChatDE Member Group", y = "User Switch Time") +
   papaja::theme_apa(box = TRUE) +
-  labs(x = "#EdChatDE Member Group", y = "User Switch Time", fill = "Median Lifespan") +
-  theme(legend.position = "bottom") +
-  theme(legend.margin = margin(t = -5, unit = "pt"))
+  theme(legend.position = "top") +
+  theme(
+    legend.margin = margin(b = -7, unit = "pt"),
+    axis.title.y = element_text(margin = margin(r = 3, unit = "pt"))
+  )
 g_switch
 
-# ggsave(plot = g_switch, filename = "switch_explain.png", height = 4, width = 6)
+
+# outlier = larger values than 1.5 * IQR
+# What's the IQR here?
+
+ggsave(plot = g_switch, filename = "switch_explain_teachers.png", height = 4, width = 6)
 ```
 
 
