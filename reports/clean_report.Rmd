@@ -127,7 +127,9 @@ chat_stat_users <- chat %>%
     n_users = user_id %>% n_distinct()
   ) %>%
   mutate(community = "EdChatDE") %>%
-  add_row(year = "2012", n_users = 0, community = "EdChatDE") # start at 0
+  add_row(year = "2012", n_users = 0, community = "EdChatDE") %>% # start at 0
+  add_row(year = "2011", n_users = 0, community = "EdChatDE") %>% # start at 0
+  arrange(year)
 
 twlz_stat_users <- twlz %>%
   group_by(year) %>%
@@ -135,7 +137,9 @@ twlz_stat_users <- twlz %>%
     n_users = user_id %>% n_distinct()
   ) %>%
   mutate(community = "TWLZ") %>%
-  add_row(year = "2007", n_users = 0, community = "TWLZ") # start at 0
+  add_row(year = "2007", n_users = 0, community = "TWLZ") %>% # start at 0
+  add_row(year = "2006", n_users = 0, community = "EdChatDE") %>% # start at 0
+  arrange(year)
 
 time_stat_users <- bind_rows(chat_stat_users, twlz_stat_users)
 time_stat_users <- time_stat_users %>%
@@ -143,30 +147,43 @@ time_stat_users <- time_stat_users %>%
     year = year %>% as.numeric()
   ) %>%
   arrange(year)
+```
 
-years <- c(2007, 2009, 2011, 2013, 2015, 2017, 2019, 2021)
 
-g_users <- time_stat_users %>%
+```{r}
+year_labels <- as.character(seq(2004, 2022, 1))
+year_labels[c(FALSE, TRUE)] <- ""
+
+dev.new(width = 6, height = 4)
+dev.off()
+graphics.off()
+
+time_stat_users %>%
   ggplot(aes(x = year, y = n_users, color = community)) +
   geom_line() +
   scale_color_manual(values = c("#E64B35FF", "#3C5488FF")) +
-  guides(color = guide_legend(reverse = TRUE)) +
+  guides(color = FALSE) +
+  geom_label(label = "EdChatDE", x = 2012.5, y = log10(2100), color = "#E64B35FF") +
+  geom_label(label = "TWLZ", x = 2009, y = log10(70), color = "#3C5488FF") +
   scale_y_log10(
-    breaks = scales::trans_breaks("log10", function(x) 10^x),
-    labels = scales::trans_format("log10", scales::math_format(10^.x))
+    breaks = scales::breaks_log(),
+    labels = scales::label_log()
   ) +
-  scale_x_continuous(labels = as.character(years), breaks = years) +
+  scale_x_continuous(
+    limits = c(2006, 2022),
+    breaks = seq(2004, 2022, 1),
+    labels = year_labels
+  ) +
+  labs(x = "", y = expression(paste("Users ", (log[10])))) +
   papaja::theme_apa(box = TRUE) +
-  labs(x = "Year", y = expression(paste("Users ", (log[10]))), color = "Community") +
-  theme(legend.position = "bottom", legend.title = element_blank())
+  theme(axis.title.y = element_text(margin = margin(r = 3, unit = "pt")))
 
-g_users
+ggsave(plot = log_user, filename = "log_users.png", height = 4, width = 6)
 ```
 
+
 ```{r}
-my_theming <- theme(
-  axis.title.y = element_text(margin = margin(r = -.2, unit = "pt"))
-)
+my_theming <- theme()
 
 g_tweets <- g_tweets + my_theming
 g_users <- g_users + my_theming
@@ -197,6 +214,7 @@ g_stacked
 d_user <- d %>%
   distinct(user_id, .keep_all = TRUE) %>%
   select(twlz_member_group, edchatde_member_group) %>%
+  mutate(group = str_glue("{twlz_member_group}|{edchatde_member_group}")) %>%
   na.omit() # FIXME: What about the NAs?
 
 xtabs(~ twlz_member_group + edchatde_member_group, d_user) %>%
@@ -239,6 +257,47 @@ g_jitter
 
 xtabs(~ twlz_member_group + edchatde_member_group, d_user)
 ```
+
+## Jitter with Gradients
+
+```{r}
+d_user <- d %>%
+  distinct(user_id, .keep_all = TRUE) %>%
+  select(twlz_member_group, edchatde_member_group) %>%
+  mutate(group = str_glue("{twlz_member_group}|{edchatde_member_group}")) %>%
+  na.omit() # FIXME: What about the NAs?
+
+gradients <- readRDS(here::here("data", "gradients.rds"))
+
+gradients <- gradients %>%
+  mutate(group = str_glue("{twlz_member_group}|{edchatde_member_group}")) %>%
+  select(group, Freq)
+
+gradients$Freq %>% summary()
+
+
+d_user <- d_user %>% left_join(gradients, by = c("group" = "group"))
+```
+
+
+```{r}
+# https://ggplot2.tidyverse.org/reference/guide_colourbar.html
+
+d_user %>%
+  ggplot(aes(x = twlz_member_group, y = edchatde_member_group, color = Freq)) +
+  geom_jitter(show.legend = TRUE) +
+  # geom_tile() +
+  scale_color_viridis_c(breaks = c(-6, -3, 0, 3, 6), labels = scales::label_number(accuracy = 2)) +
+  # scale_color_continuous(type = "viridis") +
+  # guide_colorsteps(aes(nbin = 6)) +
+  papaja::theme_apa(box = TRUE) +
+  labs(x = "TWLZ Member Group", y = "#EdChatDE Member Group") +
+  # theme(axis.title.y = element_text(margin = margin(r = -.1, unit = "pt"))) +
+  scale_x_discrete(labels = scales::wrap_format(10)) +
+  scale_y_discrete(labels = scales::wrap_format(10)) +
+  coord_fixed()
+```
+
 
 
 ```{r}
@@ -380,11 +439,13 @@ d_model <- d_model %>%
   select(-user_switch_time)
 
 # Fit + Search
-m <- lm(user_switch_time_standard ~ . + 0, d_model)
+m <- lm(user_switch_time_standard ~ ., d_model)
 summary(m)
 
 mm <- MASS::stepAIC(m, direction = "backward")
 summary(mm)
+
+library(sjPlot)
 sjPlot::tab_model(mm)
 
 # plot(mm)
@@ -405,18 +466,24 @@ mm_stats <- mm %>%
   select(term, estimate, std.error, p.value) %>%
   add_row(.before = 1, term = "EdChatDE DOI group") %>%
   mutate(
-    p.value = scales::pvalue(p.value)
-    # term =
-  )
+    stars = symnum(p.value, corr = FALSE, na = FALSE, cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1), symbols = c("***", "**", "*", ".", " ")),
+    p.value = scales::pvalue(p.value),
+    estimate = estimate %>% round(digits = 2),
+    estimate_print = paste0(estimate, stars)
+  ) %>%
+  select(term, estimate_print, std.error)
+
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 mm_stats %>%
-  kbl(
-    format = "html",
+  kableExtra::kbl(
+    format = "latex",
     booktabs = TRUE,
     # caption = "Coefficient-Level Estimates for a Model Fitted to Estimate Variation in Peer Ratings.",
-    col.names = c("Effect", "Estimate", "SE", "p"),
-    digits = c(0, 2, 2, 3)
-  )
+    col.names = c("Effect", "Estimate", "SE"),
+    digits = c(0, 0, 2)
+  ) %>%
+  clipr::write_clip()
 ```
 
 
@@ -557,13 +624,48 @@ AME <- margins::margins(log) %>%
 
 
 log_stats %>%
-  filter(term != "(Intercept)") %>%
+  # filter(term != "(Intercept)") %>%
   kableExtra::kbl(
     format = "latex",
     booktabs = TRUE,
     # caption = "Coefficient-Level Estimates for a Model Fitted to Estimate Variation in Peer Ratings.",
-    col.names = c("Effect", "OR", "AME", "p"),
-    digits = c(0, 2, 2, 3)
+    col.names = c("Effect", "OR", "AME"),
+    digits = c(0, 0, 2)
+  ) %>%
+  clipr::write_clip()
+```
+
+
+```{r}
+## Kable
+library(broom)
+library(papaja)
+library(kableExtra)
+
+# TODO: \usepackage{booktabs}
+
+log_stats <- log %>%
+  broom::tidy() %>%
+  # add_row(.before = 1, term = "EdChatDE DOI group") %>%
+  mutate(
+    .after = "term",
+    OR = exp(estimate) %>% round(digits = 2),
+    AME = c(NA, margins::margins(log) %>% summary() %>% pull("AME")),
+    stars = symnum(p.value, corr = FALSE, na = FALSE, cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1), symbols = c("***", "**", "*", ".", " ")),
+    OR_print = paste0(OR, stars)
+    # p.value = scales::pvalue(p.value),
+  ) %>%
+  select(term, OR_print, AME)
+
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+mm_stats %>%
+  kableExtra::kbl(
+    format = "latex",
+    booktabs = TRUE,
+    # caption = "Coefficient-Level Estimates for a Model Fitted to Estimate Variation in Peer Ratings.",
+    col.names = c("Effect", "Estimate", "SE"),
+    digits = c(0, 0, 2)
   ) %>%
   clipr::write_clip()
 ```
