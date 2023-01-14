@@ -5,7 +5,7 @@ export_gradients <- function(d) {
   tab <- xtabs(~ twlz_member_group + edchatde_member_group, d_user)
   questionr::chisq.residuals(tab, digits = 2, std = FALSE, raw = FALSE) %>%
     as.data.frame() %>%
-    saveRDS('gradients.rds')
+    saveRDS("gradients.rds")
   return(TRUE)
 }
 
@@ -26,11 +26,13 @@ get_times <- function(d, n_interactions = 1) {
     ungroup()
   chat_entries <- edchatde_entries %>%
     pull(edchatde_entry) %>%
-    (function(v){return(v[!is.na(v)])}) %>%
+    (function(v) {
+      return(v[!is.na(v)])
+    }) %>%
     sort()
   times <- tibble(
     enter = chat_entries,
-    #n = 1:length(chat_entries),
+    # n = 1:length(chat_entries),
     rel = 1:length(chat_entries) / length(chat_entries)
   )
   return(times)
@@ -47,32 +49,42 @@ run_doi_gof <- function(d) {
   d_user %>%
     pull(edchatde_member_group) %>%
     table() %>%
-    (function(tab){return(tab/sum(tab))})
+    (function(tab) {
+      return(tab / sum(tab))
+    })
 
   # Main
   times <- d_user %>% get_times(n_interactions = 1)
 
-  times %>% ggplot(aes(enter, rel)) + geom_point()
+  times %>% ggplot(aes(enter, rel)) +
+    geom_point()
 
   times %>% get_fit()
 
   # Multiple
-  ii <- c(); fits <- c(); nn <- c()
+  ii <- c()
+  fits <- c()
+  nn <- c()
   for (i in 1:10) {
-    cat(i, '\n')
+    cat(i, "\n")
     ii <- c(ii, i)
     fits <- c(fits, d_user %>% get_times(n_interactions = i) %>% get_fit())
     nn <- c(nn, d_user %>% get_times(n_interactions = i) %>% nrow())
   }
 
   data.frame(
-    i=ii,
-    fit=fits,
-    nn=nn
+    i = ii,
+    fit = fits,
+    nn = nn
   )
 
-  d_user %>% get_times(n_interactions = 2) %>% get_fit()
-  d_user %>% get_times(n_interactions = 2) %>% ggplot(aes(enter, rel)) + geom_point()
+  d_user %>%
+    get_times(n_interactions = 2) %>%
+    get_fit()
+  d_user %>%
+    get_times(n_interactions = 2) %>%
+    ggplot(aes(enter, rel)) +
+    geom_point()
 
   # 2 better than 1 -> elbow point # Residual sum of squares to a simple fit of a logistic growth curve
 
@@ -86,7 +98,7 @@ run_postprocessing <- function(d) {
 
   n_tweets_edchat <- d %>%
     filter(is_edchatde) %>%
-    count(user_id, name = 'n_tweets_edchat')
+    count(user_id, name = "n_tweets_edchat")
 
   n_days_active <- d %>%
     filter(is_edchatde) %>%
@@ -105,7 +117,6 @@ run_postprocessing <- function(d) {
 }
 
 run_user_social <- function(dat) {
-
   dat <- dat %>% mutate(
     created_at = created_at %>% lubridate::ymd_hms(tz = "UTC", locale = "en_US.UTF-8"),
     repost_count = retweet_count + quote_count
@@ -125,9 +136,9 @@ run_user_social <- function(dat) {
   }
 
   dat <- dat %>%
-    add_lag_vars(30) #%>%
-    #add_lag_vars(60) %>%
-    #add_lag_vars(90)
+    add_lag_vars(30) # %>%
+  # add_lag_vars(60) %>%
+  # add_lag_vars(90)
 
   users_grouped <- dat %>% group_by(user_id)
   user_ids <- users_grouped %>% group_keys()
@@ -138,7 +149,7 @@ run_user_social <- function(dat) {
 
   ### Filter user subframes down to cutoff period
   user_cut <- user_split %>%
-    #(function(x){return(x[1:1000])}) %>%
+    # (function(x){return(x[1:1000])}) %>%
     map(~ .x %>% filter(created_at > user_time_cutoff_30 & created_at <= switch_date))
 
   # make stats
@@ -154,11 +165,13 @@ run_user_social <- function(dat) {
     n_lag_reposts = user_cut %>% map_int(~ .x$repost_count %>% sum()),
     n_lag_replies = user_cut %>% map_int(~ .x$reply_count %>% sum()),
     n_lag_convs = user_cut %>% map_int(~ .x %>%
-                                         filter(!is_head) %>%
-                                         nrow()),
+      filter(!is_head) %>%
+      nrow()),
     # Connect
     n_lag_mentions = user_cut %>% map_int(~ .x$n_mentions %>% sum()),
-    n_lag_interactions = user_cut %>% map_int(~ .x$n_interactions_edchat %>% sum() %>% as.integer())
+    n_lag_interactions = user_cut %>% map_int(~ .x$n_interactions_edchat %>%
+      sum() %>%
+      as.integer())
   )
 
   # Export ------------------------------------------------------------------
@@ -174,9 +187,9 @@ run_social <- function(d) {
 
   test <- d %>%
     filter(is_edchatde_member) %>% # in edchat
-    #filter(user_switched) %>% # only switchers
+    # filter(user_switched) %>% # only switchers
     filter(!user_has_switched) %>% # before switch
-    #sample_n(10000) %>%
+    # sample_n(10000) %>%
     I()
 
   # select relevant vars, reduce payload
@@ -471,7 +484,6 @@ add_member_group <- function(d, reference = "twlz", n_interactions_for_membershi
 #### OLD FUNCTIONS ####
 
 old_overlap_plot <- function(d) {
-
   # User minmax
   overlap_users <- base::intersect(edchat_users, twlz_users)
   d_overlap <- d %>%

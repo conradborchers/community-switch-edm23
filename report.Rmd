@@ -20,12 +20,12 @@ d <- tar_read(d_analysis)
 # Size
 nrow(d)
 
-d %>% 
-  filter(is_edchatde) %>% 
+d %>%
+  filter(is_edchatde) %>%
   nrow()
 
-d %>% 
-  filter(is_twlz) %>% 
+d %>%
+  filter(is_twlz) %>%
   nrow()
 
 # First tweet
@@ -35,12 +35,12 @@ d$created_at %>% min()
 d$created_at %>% max()
 
 tab <- d %>%
-    filter(!is.na(user_switched)) %>% 
-    arrange(desc(user_switched)) %>%
-    distinct(user_id, .keep_all = TRUE) %>% 
-    filter(is_edchatde_member) %>% 
-    pull(user_switched) %>%
-    table()
+  filter(!is.na(user_switched)) %>%
+  arrange(desc(user_switched)) %>%
+  distinct(user_id, .keep_all = TRUE) %>%
+  filter(is_edchatde_member) %>%
+  pull(user_switched) %>%
+  table()
 
 tab
 
@@ -55,32 +55,34 @@ length(edchat_users)
 length(twlz_users)
 length(base::intersect(twlz_users, edchat_users))
 
-times <- d %>% 
-  distinct(user_id, .keep_all = TRUE) %>% 
-  filter(!is.na(user_switch_time)) %>% 
-  pull(user_switch_time) %>% 
+times <- d %>%
+  distinct(user_id, .keep_all = TRUE) %>%
+  filter(!is.na(user_switch_time)) %>%
+  pull(user_switch_time) %>%
   as.POSIXct()
-  
+
 times %>% mean()
 times %>% median()
-times %>% IQR() %>% lubridate::seconds_to_period()
+times %>%
+  IQR() %>%
+  lubridate::seconds_to_period()
 times %>% quantile(0.25)
 times %>% quantile(0.75)
 
 suppressWarnings(
-tmp <- d %>% 
-  group_by(user_id) %>% 
-  summarize(
-    min_overlap = min(created_at[currently_twlz & currently_edchatde], na.rm = TRUE),
-    max_overlap = max(created_at[currently_twlz & currently_edchatde], na.rm = TRUE)
-  ) %>% 
-  ungroup() %>% 
-  mutate(diff = max_overlap - min_overlap)
+  tmp <- d %>%
+    group_by(user_id) %>%
+    summarize(
+      min_overlap = min(created_at[currently_twlz & currently_edchatde], na.rm = TRUE),
+      max_overlap = max(created_at[currently_twlz & currently_edchatde], na.rm = TRUE)
+    ) %>%
+    ungroup() %>%
+    mutate(diff = max_overlap - min_overlap)
 )
 
-tmp %>% 
-  filter(!is.infinite(min_overlap)) %>% 
-  mutate(mean_diff = mean(diff, na.rm = TRUE) %>% as.numeric() %>% lubridate::seconds_to_period()) %>% 
+tmp %>%
+  filter(!is.infinite(min_overlap)) %>%
+  mutate(mean_diff = mean(diff, na.rm = TRUE) %>% as.numeric() %>% lubridate::seconds_to_period()) %>%
   mutate(sd_diff = sd(diff, na.rm = TRUE) %>% as.numeric() %>% lubridate::seconds_to_period())
 
 nrow(tmp)
@@ -97,13 +99,12 @@ xtabs(~ twlz_member_group + edchatde_member_group, d_user) %>%
 xtabs(~ twlz_member_group + edchatde_member_group, d_user)
 
 chisq.test(d_user$twlz_member_group, d_user$edchatde_member_group)
-
 ```
 
 ```{r modeling, cache=FALSE}
 
 d_user <- d %>%
-  filter(!is.na(user_switched)) %>% 
+  filter(!is.na(user_switched)) %>%
   arrange(desc(user_switched)) %>%
   distinct(user_id, .keep_all = TRUE)
 
@@ -119,22 +120,22 @@ var_space <- c(
   "centrality_degree",
   "centrality_closeness",
   "centrality_betweenness",
-  "centrality_eigen"#,
-  #"user_total_tweet_count",
-  #"repost_count",
-  #"n_lag_posted_tweets_all",
-  #"n_lag_posted_tweets_original",
-  #"n_lag_likes",
-  #"n_lag_reposts",
-  #"n_lag_replies",
-  #"n_lag_convs",
-  #"n_lag_mentions",
-  #"n_lag_interactions"
+  "centrality_eigen" # ,
+  # "user_total_tweet_count",
+  # "repost_count",
+  # "n_lag_posted_tweets_all",
+  # "n_lag_posted_tweets_original",
+  # "n_lag_likes",
+  # "n_lag_reposts",
+  # "n_lag_replies",
+  # "n_lag_convs",
+  # "n_lag_mentions",
+  # "n_lag_interactions"
 )
 
 d_model <- d_user %>%
   select(!!var_space) %>%
-  mutate_if(is.numeric, ~replace(., is.na(.), 0)) %>% 
+  mutate_if(is.numeric, ~ replace(., is.na(.), 0)) %>%
   drop_na()
 
 # Log centralities
@@ -152,26 +153,24 @@ d_model$centrality_closeness[is.infinite(d_model$centrality_closeness)] <- 0
 d_model <- d_model %>%
   mutate_if(is.numeric, scale)
 
-d_model$edchatde_member_group <- d_model$edchatde_member_group %>% 
+d_model$edchatde_member_group <- d_model$edchatde_member_group %>%
   factor(levels = c("innovators", "early adopters", "early majority", "late majority", "laggards"))
 
 # Fit + Search
 m <- glm(user_switched ~ ., d_model, family = "binomial")
-mm <- MASS::stepAIC(m, direction = 'backward')
+mm <- MASS::stepAIC(m, direction = "backward")
 sjPlot::tab_model(mm)
 
 plot(mm)
-
-
 ```
 
 ```{r explan_plot, cache=FALSE}
 
 d_user <- d %>%
-  filter(!is.na(user_switched)) %>% 
+  filter(!is.na(user_switched)) %>%
   arrange(desc(user_switched)) %>%
   distinct(user_id, .keep_all = TRUE)
-  
+
 # Standardize time to unix time, then Z standardize
 d_user["user_switch_time_standard"] <- d_user$user_switch_time %>%
   as.POSIXct(format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC") %>%
@@ -182,22 +181,20 @@ d_user["above_median_lifespan"] <- ifelse(d_user$user_lifespan_days >= median(d_
 d_user %>%
   ggplot(aes(factor(edchatde_member_group, level = c("innovators", "early adopters", "early majority", "late majority", "laggards")), user_switch_time_standard, fill = above_median_lifespan)) +
   geom_boxplot()
-
-
 ```
 
 ```{r time_switch_model, cache=FALSE}
 
 d_user <- d %>%
-  filter(!is.na(user_switched)) %>% 
-  arrange(desc(user_switch_time)) %>% 
-  distinct(user_id, .keep_all = TRUE) %>% 
+  filter(!is.na(user_switched)) %>%
+  arrange(desc(user_switch_time)) %>%
+  distinct(user_id, .keep_all = TRUE) %>%
   filter(!is.na(user_switch_time))
 
 var_space <- c(
   "user_switch_time",
   "edchatde_member_group",
-  #"user_total_tweet_count",
+  # "user_total_tweet_count",
   "n_interactions_edchat",
   "user_lifespan_days",
   "user_following_count",
@@ -208,20 +205,20 @@ var_space <- c(
   "centrality_closeness",
   "centrality_betweenness",
   "centrality_eigen",
-  "repost_count"#,
-  #"n_lag_posted_tweets_all",
-  #"n_lag_likes",
-  #"n_lag_reposts",
-  #"n_lag_replies",
-  #"n_lag_mentions"#,
-  #"n_lag_interactions"
-  #"n_lag_posted_tweets_original",
-  #"n_lag_convs",
+  "repost_count" # ,
+  # "n_lag_posted_tweets_all",
+  # "n_lag_likes",
+  # "n_lag_reposts",
+  # "n_lag_replies",
+  # "n_lag_mentions"#,
+  # "n_lag_interactions"
+  # "n_lag_posted_tweets_original",
+  # "n_lag_convs",
 )
 
 d_model <- d_user %>%
   select(!!var_space) %>%
-  mutate_if(is.numeric, ~replace(., is.na(.), 0)) %>% 
+  mutate_if(is.numeric, ~ replace(., is.na(.), 0)) %>%
   drop_na()
 
 # Log centralities
@@ -245,19 +242,18 @@ d_model["user_switch_time_standard"] <- d_model$user_switch_time %>%
   as.numeric() %>%
   scale()
 
-d_model$edchatde_member_group <- d_model$edchatde_member_group %>% 
+d_model$edchatde_member_group <- d_model$edchatde_member_group %>%
   factor(levels = c("innovators", "early adopters", "early majority", "late majority", "laggards"))
 
-d_model <- d_model %>% 
+d_model <- d_model %>%
   select(-user_switch_time)
 
 # Fit + Search
 m <- lm(user_switch_time_standard ~ ., d_model)
-mm <- MASS::stepAIC(m, direction = 'backward')
+mm <- MASS::stepAIC(m, direction = "backward")
 sjPlot::tab_model(mm)
 
 plot(mm)
-
 ```
 
 

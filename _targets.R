@@ -19,5 +19,3 @@ targets <- list(
   tar_target(d_modeling, d_social %>% run_user_social()),
   tar_target(d_analysis, d_modeling %>% run_postprocessing())
 )
-
-

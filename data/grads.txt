@@ -1,0 +1,7 @@
+edchatde_member_group
+twlz_member_group early adopters early majority innovators laggards late majority
+   early adopters          -2.65          -1.27      -1.65     9.03         -4.20
+   early majority           1.52           2.51      -1.20    -0.31         -2.46
+   innovators               1.65          -2.78       3.25    -8.77          7.63
+   laggards                -0.34           2.72       0.19    -2.27         -0.42
+   late majority            0.83           3.88      -0.99    -2.45         -1.59
