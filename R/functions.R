@@ -32,7 +32,6 @@ get_times <- function(d, n_interactions = 1) {
     sort()
   times <- tibble(
     enter = chat_entries,
-    # n = 1:length(chat_entries),
     rel = 1:length(chat_entries) / length(chat_entries)
   )
   return(times)
@@ -41,7 +40,6 @@ get_times <- function(d, n_interactions = 1) {
 run_doi_gof <- function(d) {
   # d <- targets::tar_read(d_analysis)
 
-  # TODO
   d_user <- d %>%
     distinct(user_id, .keep_all = TRUE)
 
@@ -61,7 +59,7 @@ run_doi_gof <- function(d) {
 
   times %>% get_fit()
 
-  # Multiple
+  # Multiple cutoffs for different numbers of required community interactions for community membership
   ii <- c()
   fits <- c()
   nn <- c()
@@ -85,8 +83,6 @@ run_doi_gof <- function(d) {
     get_times(n_interactions = 2) %>%
     ggplot(aes(enter, rel)) +
     geom_point()
-
-  # 2 better than 1 -> elbow point # Residual sum of squares to a simple fit of a logistic growth curve
 
   return(TRUE)
 }
@@ -136,9 +132,7 @@ run_user_social <- function(dat) {
   }
 
   dat <- dat %>%
-    add_lag_vars(30) # %>%
-  # add_lag_vars(60) %>%
-  # add_lag_vars(90)
+    add_lag_vars(30)
 
   users_grouped <- dat %>% group_by(user_id)
   user_ids <- users_grouped %>% group_keys()
@@ -149,7 +143,7 @@ run_user_social <- function(dat) {
 
   ### Filter user subframes down to cutoff period
   user_cut <- user_split %>%
-    # (function(x){return(x[1:1000])}) %>%
+    # (function(x){return(x[1:1000])}) %>% # For debugging
     map(~ .x %>% filter(created_at > user_time_cutoff_30 & created_at <= switch_date))
 
   # make stats
@@ -187,9 +181,9 @@ run_social <- function(d) {
 
   test <- d %>%
     filter(is_edchatde_member) %>% # in edchat
-    # filter(user_switched) %>% # only switchers
+    # filter(user_switched) %>% # for filtering only switchers
     filter(!user_has_switched) %>% # before switch
-    # sample_n(10000) %>%
+    # sample_n(10000) %>% # for debugging
     I()
 
   # select relevant vars, reduce payload
@@ -199,8 +193,8 @@ run_social <- function(d) {
     replied_user_id, -mentions
   )
 
-  all_mentions <- test$text %>% str_extract_all("(?<=@)[[:alnum:]_]+") # exclude @ automatically
-  all_mentions[which(test$is_retweet)] <- vector(mode = "list", length = sum(test$is_retweet)) # add NULL to retweets
+  all_mentions <- test$text %>% str_extract_all("(?<=@)[[:alnum:]_]+") # extract mentions without @
+  all_mentions[which(test$is_retweet)] <- vector(mode = "list", length = sum(test$is_retweet)) # preserve vector length
 
   test <- test %>% mutate(
     mentions_clean = all_mentions,
@@ -210,7 +204,7 @@ run_social <- function(d) {
     )
   )
 
-  # first two cols are from to, rest edge attributes
+  # first two cols are from to, the remaining columns are edge attributes
   edges <- test %>%
     unchop(interacts) %>%
     select(from = user_id, to = interacts, created_at, is_retweet, is_mentioning, is_quote, is_reply)
@@ -219,7 +213,6 @@ run_social <- function(d) {
     count(from, sort = TRUE) %>%
     select(user = from, n_interactions = n)
 
-  # vertices = nodes (node attributes)
   ig <- igraph::graph_from_data_frame(d = edges, directed = FALSE, vertices = NULL)
   graph <- ig %>% tidygraph::as_tbl_graph()
 
@@ -259,7 +252,6 @@ add_transaction_variables <- function(d, hashtag_list) {
   d <- d %>%
     mutate(
       is_edchatde = is_chat,
-      # community = ifelse(is_twlz & is_edchatde, "both", ifelse(is_twlz, "twlz", ifelse(is_edchatde, "edchatde", "neither"))))
       community = case_when(
         is_twlz & is_edchatde ~ "both",
         is_twlz ~ "twlz",
@@ -376,8 +368,7 @@ get_n_interactions <- function(d, rename_variable = "", parsed_only_community_tw
   cat("\n get_n_interactions...")
   # User-to-user transactions with time-stamp
 
-  all_mentions <- str_extract_all(d$text, "(?<=@)[[:alnum:]_]+") # exclude @ automatically
-  # overwite retweets with empty list
+  all_mentions <- str_extract_all(d$text, "(?<=@)[[:alnum:]_]+")
   all_mentions[which(d$is_retweet)] <- vector(mode = "list", length = sum(d$is_retweet))
 
   # Each row is user a interacting with tweet of user b in second column
@@ -413,7 +404,6 @@ get_interaction_graph_data <- function(d, parsed_only_community_tweets = TRUE) {
 
   # Each row is user a interacting with tweet of user b in second column
   interactions <- d %>%
-    # mutate(mentions = all_mentions) %>%
     select(status_id, created_at, matches("user_id"), mentions, is_twlz, is_edchatde) %>%
     mutate(interacts = map2(quoted_user_id, retweeted_user_id, concat_na_omit)) %>%
     mutate(interacts = map2(interacts, replied_user_id, concat_na_omit)) %>%
@@ -421,8 +411,6 @@ get_interaction_graph_data <- function(d, parsed_only_community_tweets = TRUE) {
     select(status_id, created_at, user_id, created_at, interacts, is_twlz, is_edchatde) %>%
     unchop(interacts) %>%
     mutate(interacts = interacts %>% str_replace_all("@", ""))
-  # %>%
-  # as_tbl_graph()
 
   # Every post itself is an interactions with the community
   if (parsed_only_community_tweets) {
@@ -453,7 +441,6 @@ add_member_group <- function(d, reference = "twlz", n_interactions_for_membershi
       ))
     out <- d %>%
       left_join(twlz_entries %>% select(user_id, twlz_entry, twlz_member_group), by = "user_id")
-    # out$twlz_member_group[out$created_at < out$twlz_entry] <- NA # mask group before it occurs
     return(out)
   } else if (reference == "edchatde") {
     d["is_edchatde_member"] <- d$n_interactions_edchatde_cumsum > n_interactions_for_membership
@@ -474,7 +461,6 @@ add_member_group <- function(d, reference = "twlz", n_interactions_for_membershi
       ))
     out <- d %>%
       left_join(edchatde_entries %>% select(user_id, edchatde_entry, edchatde_member_group), by = "user_id")
-    # out$edchatde_member_group[out$created_at < out$edchatde_entry] <- NA # mask group before it occurs
     return(out)
   } else {
     return(d)

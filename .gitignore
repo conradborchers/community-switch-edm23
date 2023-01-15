@@ -8,3 +8,4 @@ _targets/
 *.html
 report_cache/
 report_files/
+plots/

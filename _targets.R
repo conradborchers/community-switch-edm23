@@ -8,7 +8,6 @@ targets <- list(
   #### SETUP ####
   tar_target(input_f, here::here("data", "twlz_edchatde_sample_FIX.rds")),
   tar_target(input_d, readRDS(input_f) %>% filter(!is_bot)), # 255,061 tweets and 170 users less
-  # tar_target(input_d_cleaned, clean_data(input_d)),
   tar_target(sample_hashtags, readr::read_csv("data/sample_hashtags.csv")),
 
   #### ANALYSIS DATA SET ####

@@ -25,27 +25,6 @@ library(tidyverse)
 ```{r data}
 # d <- targets::tar_read("d_analysis")
 d <- readRDS(here::here("data", "d_analysis.rds"))
-
-# small <- d %>%
-#   select("status_id", "user_id", "quote_count", "retweet_count", "year", "is_chat", "is_twlz", twlz_member_group, edchatde_member_group,
-#
-#
-#
-# var_space <- c(
-#   "user_switch_time",
-#   "edchatde_member_group",
-#   "is_teacher",
-#   # "user_total_tweet_count",
-#   "n_interactions_edchat",
-#   "user_lifespan_days",
-#   "user_following_count",
-#   "user_followers_count",
-#   "n_tweets_edchat_per_day",
-#   "user_repost_count", # "repost_count"
-#   "centrality_degree",
-#   "centrality_closeness",
-#   "centrality_betweenness",
-#   "centrality_eigen")
 ```
 
 # Plots
@@ -76,8 +55,6 @@ scales::show_col(npg)
 
 ## Time-series - Tweets
 ```{r}
-# FIXME: how to deal with overlap?
-
 chat_stat <- chat %>%
   count(year) %>%
   mutate(
@@ -200,30 +177,19 @@ g_stacked
 
 # g_stacked %>% ggpubr::ggexport(filename = "timeseries_stacked_export.png")
 # ggsave(plot = g_stacked, filename = "timeseries_stacked.png", height = 8, width = 5)
-
-## patchwork
-# library(patchwork)
-# combined <- g_tweets + g_users + patchwork::plot_layout(guides = "collect")
-# theme(legend.position = "bottom")
 ```
-
-
-
 ## Mosaic
 ```{r}
 d_user <- d %>%
   distinct(user_id, .keep_all = TRUE) %>%
   select(twlz_member_group, edchatde_member_group) %>%
   mutate(group = str_glue("{twlz_member_group}|{edchatde_member_group}")) %>%
-  na.omit() # FIXME: What about the NAs?
+  na.omit() 
 
 xtabs(~ twlz_member_group + edchatde_member_group, d_user) %>%
   mosaicplot(shade = TRUE)
 
 members <- xtabs(~ twlz_member_group + edchatde_member_group, d_user)
-
-# install.packages("janitor")
-# install.packages("tabyls")
 
 members_tab <- d_user %>%
   janitor::tabyl(twlz_member_group, edchatde_member_group)
@@ -247,7 +213,6 @@ g_jitter <- d_user %>%
   geom_jitter() +
   papaja::theme_apa(box = TRUE) +
   labs(x = "TWLZ Member Group", y = "#EdChatDE Member Group") +
-  # theme(axis.title.y = element_text(margin = margin(r = -.1, unit = "pt"))) +
   scale_x_discrete(labels = scales::wrap_format(10)) +
   scale_y_discrete(labels = scales::wrap_format(10)) +
   coord_fixed()
@@ -332,8 +297,6 @@ d_user_switch["user_switch_time_standard"] <- d_user_switch$user_switch_time %>%
   as.numeric() %>%
   scale()
 
-# d_user_switch["above_median_lifespan"] <- ifelse(d_user_switch$user_lifespan_days >= median(d_user_switch$user_lifespan_days), "above", "below")
-
 d_user_switch <- d_user_switch %>%
   mutate(
     edchatde_member_group_f = factor(edchatde_member_group,
@@ -357,8 +320,6 @@ g_switch <-
   geom_boxplot(position = position_dodge2(0.75, preserve = "single")) + # center and keep same size individually
   scale_fill_manual(
     name = "",
-    # limits = c("TRUE", "FALSE"),
-    # labels = c("Teacher", "Non-Teacher"),
     values = c("#DC0000FF", "#00A087FF")
   ) +
   labs(x = "#EdChatDE Member Group", y = "User Switch Time") +
@@ -370,10 +331,7 @@ g_switch <-
   )
 g_switch
 
-
 # outlier = larger values than 1.5 * IQR
-# What's the IQR here?
-
 ggsave(plot = g_switch, filename = "switch_explain_teachers.png", height = 4, width = 6)
 ```
 
@@ -414,26 +372,16 @@ var_space <- c(
   "user_switch_time",
   "edchatde_member_group",
   "is_teacher",
-  # "user_total_tweet_count",
   "n_interactions_edchat",
   "user_lifespan_days",
   "user_following_count",
   "user_followers_count",
   "n_tweets_edchat_per_day",
-  "user_repost_count", # "repost_count"
+  "user_repost_count", 
   "centrality_degree",
   "centrality_closeness",
   "centrality_betweenness",
   "centrality_eigen"
-
-  # "n_lag_posted_tweets_all",
-  # "n_lag_likes",
-  # "n_lag_reposts",
-  # "n_lag_replies",
-  # "n_lag_mentions"#,
-  # "n_lag_interactions"
-  # "n_lag_posted_tweets_original",
-  # "n_lag_convs"
 )
 
 d_model <- d_users %>%
@@ -489,8 +437,6 @@ library(broom)
 library(papaja)
 library(kableExtra)
 
-# TODO: \usepackage{booktabs}
-
 mm_stats <- mm %>%
   broom::tidy() %>%
   select(term, estimate, std.error, p.value) %>%
@@ -509,7 +455,6 @@ mm_stats %>%
   kableExtra::kbl(
     format = "latex",
     booktabs = TRUE,
-    # caption = "Coefficient-Level Estimates for a Model Fitted to Estimate Variation in Peer Ratings.",
     col.names = c("Effect", "Estimate", "SE"),
     digits = c(0, 0, 2)
   ) %>%
@@ -556,17 +501,7 @@ var_space_log <- c(
   "centrality_degree",
   "centrality_closeness",
   "centrality_betweenness",
-  "centrality_eigen" # ,
-  # "user_total_tweet_count",
-  # "repost_count",
-  # "n_lag_posted_tweets_all",
-  # "n_lag_posted_tweets_original",
-  # "n_lag_likes",
-  # "n_lag_reposts",
-  # "n_lag_replies",
-  # "n_lag_convs",
-  # "n_lag_mentions",
-  # "n_lag_interactions"
+  "centrality_eigen" 
 )
 
 d_model <- d_user %>%
@@ -596,16 +531,8 @@ d_model$edchatde_member_group <- d_model$edchatde_member_group %>%
   factor(levels = c("innovators", "early adopters", "early majority", "late majority", "laggards"))
 
 # Fit + Search
-# m_lk <- glm(user_switched ~ ., d_model, family = binomial(link = "logit"))
-m_cb <- glm(user_switched ~ ., d_model, family = "binomial") #  drop the intercept!
+m_cb <- glm(user_switched ~ ., d_model, family = "binomial") 
 summary(m_cb)
-
-
-# df$y_pred = predict(model, df, type="response")
-
-# m_cb_stats <- broom::tidy(m_cb)
-# m_lk_stats <- broom::tidy(m_lk)
-
 
 log <- MASS::stepAIC(m_cb, direction = "backward")
 summary(log)
@@ -621,16 +548,10 @@ performance::check_model(log)
 ```{r}
 ## Kable
 library(broom)
-# library(papaja)
 library(kableExtra)
-
-# TODO: \usepackage{booktabs}
-
-# test_odds <- log %>% broom::tidy(exp = TRUE)
 
 log_stats <- log %>%
   broom::tidy() %>%
-  # add_row(.before = 1, term = "EdChatDE DOI group") %>%
   mutate(
     .after = "term",
     OR = exp(estimate),
@@ -654,11 +575,9 @@ AME <- margins::margins(log) %>%
 
 
 log_stats %>%
-  # filter(term != "(Intercept)") %>%
   kableExtra::kbl(
     format = "latex",
     booktabs = TRUE,
-    # caption = "Coefficient-Level Estimates for a Model Fitted to Estimate Variation in Peer Ratings.",
     col.names = c("Effect", "OR", "AME"),
     digits = c(0, 0, 2)
   ) %>%
@@ -672,18 +591,15 @@ library(broom)
 library(papaja)
 library(kableExtra)
 
-# TODO: \usepackage{booktabs}
 
 log_stats <- log %>%
   broom::tidy() %>%
-  # add_row(.before = 1, term = "EdChatDE DOI group") %>%
   mutate(
     .after = "term",
     OR = exp(estimate) %>% round(digits = 2),
     AME = c(NA, margins::margins(log) %>% summary() %>% pull("AME")),
     stars = symnum(p.value, corr = FALSE, na = FALSE, cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1), symbols = c("***", "**", "*", ".", " ")),
     OR_print = paste0(OR, stars)
-    # p.value = scales::pvalue(p.value),
   ) %>%
   select(term, OR_print, AME)
 
@@ -693,7 +609,6 @@ mm_stats %>%
   kableExtra::kbl(
     format = "latex",
     booktabs = TRUE,
-    # caption = "Coefficient-Level Estimates for a Model Fitted to Estimate Variation in Peer Ratings.",
     col.names = c("Effect", "Estimate", "SE"),
     digits = c(0, 0, 2)
   ) %>%
