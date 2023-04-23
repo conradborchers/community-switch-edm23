@@ -31,6 +31,8 @@ and
 
 in `_targets.R` allow for an adjustment of the community member tagging assumptions to check the robustness of the results against different membership inclusion criteria.
 
+Finally, the folder `reports/` includes an R-Markdown file reproducing the statistical analyses featured in this study.
+
 ## Data availability
 
 To learn more about the project data set and its availability, please refer to the [Twitter Germany project page](https://chrisfi.com/twittergermany) or send an email to Conrad Borchers at [cborcher@cs.cmu.edu](mailto:cborcher@cs.cmu.edu). 
